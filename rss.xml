@@ -1,0 +1,1457 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>ECE 4&#x2F;599</title>
+        <link>https%3A//khale.github.io/mem-systems-w25</link>
+        <description></description>
+        <generator>Zola</generator>
+        <language>en</language>
+        <atom:link href="https%3A//khale.github.io/mem-systems-w25/rss.xml" rel="self" type="application/rss+xml"/>
+        <icon>https%3A//khale.github.io/mem-systems-w25/img/favicon.ico</icon>
+        <lastBuildDate>Wed, 19 Feb 2025 00:00:00 +0000</lastBuildDate>
+        
+            <item>
+                <title>An Empirical Guide to the Behavior and Use of Scalable Persistent Memory</title>
+                <pubDate>Wed, 19 Feb 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/an-empirical-guide-to-the-behavior-and-use-of-scalable-persistent-memory/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/an-empirical-guide-to-the-behavior-and-use-of-scalable-persistent-memory/</guid>
+                <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h2&gt;
+&lt;p&gt;This blog discusses “An Empirical Guide to the Behavior and Use of Scalable Persistent Memory.” This work stands out as the first real-world performance benchmark of Intel’s Optane DIMMs, a groundbreaking technology that brings scalable, byte-addressable persistent memory to the computing landscape. Designed to bridge the gap between the fast but volatile DRAM and the slower, non-volatile SSDs, Optane DIMMs promised a new era of memory systems after nearly a decade of anticipation. The paper dives into how these devices actually perform, revealing surprises that upend assumptions from years of research based on emulated setups like DRAM stand-ins. Far from being just “slower DRAM,” Optane exhibits unique quirks that demand fresh thinking. Its authors set out not only to measure Optane’s behavior but also to deliver practical guidelines for software developers to optimize their code for this novel hardware. This blog unpacks their findings, shedding light on a technology that’s as complex as it is promising.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;background-and-context&quot;&gt;Background and Context&lt;&#x2F;h2&gt;
+&lt;p&gt;Persistent memory represents a transformative leap in the memory hierarchy, blending traits that set it apart from traditional technologies. Unlike DRAM, which loses its contents when power is cut, persistent memory is non-volatile, retaining data even after shutdowns. It’s denser too, packing more storage capacity into less space at a lower cost per gigabyte than DRAM. This makes it a versatile player, sitting between DRAM’s speed and SSDs’ persistence. Its byte-addressable nature—allowing direct access to individual memory locations—unlocks a range of use cases: speeding up database transaction logging and in-memory databases, providing fast persistent caching for high-performance computing (HPC), boosting memory-intensive virtualization in cloud setups, and accelerating storage as a cache or tiered layer.&lt;&#x2F;p&gt;
+&lt;p&gt;For over a decade, researchers have been gearing up for persistent memory’s arrival, but without real hardware like Intel’s Optane DIMMs, they relied on emulations—often using DRAM tweaked to mimic non-volatile memory (NVM). These setups, sometimes paired with artificial delays or NUMA effects, fueled speculation about how NVM would behave. However, powered by 3D XPoint technology (a joint Intel-Micron innovation), Optane does not behave as expected. Unlike DRAM’s straightforward capacitor-based design, 3D XPoint introduces “second-order changes”—subtle, cascading effects in latency, bandwidth, and concurrency that add a new layer of complexity. Where DRAM emulation suggested predictable performance, Optane’s real-world behavior defies those models, revealing quirks that prior speculations couldn’t anticipate. This shift challenges the research community to rethink how software interacts with memory, setting the stage for the detailed benchmarks and insights this paper delivers.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;keywords&quot;&gt;Keywords&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Persistent Memory&lt;&#x2F;strong&gt;: A type of memory that retains data even after power is lost, combining non-volatility with high density and often byte-addressable access, bridging the gap between DRAM and SSDs.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Non-Volatile Memory (NVM)&lt;&#x2F;strong&gt;: Memory that preserves data without power, unlike volatile DRAM; includes technologies like flash and persistent memory like Optane.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Optane DIMM&lt;&#x2F;strong&gt;: Intel’s scalable persistent memory module, built on 3D XPoint tech, offering byte-addressable, non-volatile storage in DIMM form for consumer and data center use.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;3D XPoint&lt;&#x2F;strong&gt;: A non-volatile memory technology developed by Intel and Micron, using a crosspoint structure with resistive switching (not transistors) for high speed and endurance.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;App Direct Mode&lt;&#x2F;strong&gt;: An Optane operating mode exposing it as a separate persistent memory device, managed by software for direct access, without DRAM caching.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Memory Mode&lt;&#x2F;strong&gt;: An Optane mode using it as volatile main memory with DRAM as a transparent cache, expanding capacity without persistence.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Asynchronous DRAM Refresh (ADR)&lt;&#x2F;strong&gt;: Intel’s feature ensuring data in the memory controller’s write queues (WPQs) is flushed to persistent media during power loss, within a short hold-up time.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Write Amplification&lt;&#x2F;strong&gt;: The increase in data written to memory beyond what the application requests, often due to block-sized updates (e.g., Optane’s 256B granularity).&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Non-Temporal Store (ntstore)&lt;&#x2F;strong&gt;: A CPU instruction bypassing the cache to write directly to memory, useful for large sequential writes to avoid cache pollution.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;iMC (Integrated Memory Controller)&lt;&#x2F;strong&gt;: The CPU component managing memory access, including read&#x2F;write queues (RPQs&#x2F;WPQs), critical for Optane’s ADR domain.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Wear Leveling&lt;&#x2F;strong&gt;: A technique to distribute writes evenly across memory cells, preventing overuse and extending lifespan, potentially causing Optane’s tail latency spikes.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;CXL (Compute Express Link)&lt;&#x2F;strong&gt;: An emerging interconnect standard for coherent memory access, supporting persistent and disaggregated memory, seen as an Optane alternative.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;1T1C (One Transistor, One Capacitor)&lt;&#x2F;strong&gt;: The basic cell design of DRAM, using a transistor-capacitor pair for each bit, contrasting with 3D XPoint’s resistive approach.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;summary-of-the-paper&quot;&gt;Summary of the Paper&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;1-introduction&quot;&gt;1. Introduction&lt;&#x2F;h3&gt;
+&lt;p&gt;The paper discusses the decade-long wait for scalable non-volatile memory (NVM), a technology researchers have speculated about since the early 2000s. Intel’s Optane DIMMs finally arrived in 2019, offering a real-world testbed to challenge those expectations. The authors set out to measure how this persistent memory performs, aiming to replace guesswork from emulated setups with data.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;2-background-and-methodology&quot;&gt;2. Background and Methodology&lt;&#x2F;h3&gt;
+&lt;p&gt;This section discusses how optane works. It plugs into Intel’s Cascade Lake processors (24 cores, dual-socket, 3 TB total Optane across 2 sockets with 6 channels each). Unlike DRAM, Optane uses 256B blocks for internal writes, managed by an on-DIMM controller (XPController) and the CPU’s integrated memory controller (iMC), which handles write pending queues (WPQs). The Asynchronous DRAM Refresh (ADR) feature ensures data in WPQs persists during power loss. The study focuses on App Direct mode—where Optane acts as a standalone persistent device—running on Fedora 27 with a custom kernel, testing 384 GB DRAM alongside 256 GB Optane DIMMs per channel.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;3-performance-characterization&quot;&gt;3. Performance Characterization&lt;&#x2F;h3&gt;
+&lt;p&gt;Read latency clocks in at 2x-3x higher than DRAM, with random reads hit harder than sequential ones due to the 256B XPBuffer’s limits. Tail latency spikes—up to 50 µs, 100x the norm—pop up unpredictably, likely from wear leveling. Bandwidth tells a split story: reads scale well with threads (up to 16), but writes plateau early (around 4-12 threads) and dip with more concurrency, far less scalable than DRAM’s steady climb. Small random writes tank performance, while sequential ones hold up better.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;4-comparison-to-emulation&quot;&gt;4. Comparison to Emulation&lt;&#x2F;h3&gt;
+&lt;p&gt;Past NVM studies used DRAM with delays or NUMA tricks, predicting Optane as “slower DRAM.” Real tests flip that script. In RocksDB, emulation favored fine-grained persistence (moving the memtable to NVM), but on Optane, the FLEX approach (sequential write-ahead logging) wins by 10%, thanks to its dislike for small random writes. Emulated guesses missed Optane’s nuanced behavior.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;5-best-practices-for-optane-dimms&quot;&gt;5. Best Practices for Optane DIMMs&lt;&#x2F;h3&gt;
+&lt;p&gt;The paper distills four guidelines from microbenchmarks: avoid small random writes under 256B (they amplify due to block size), use non-temporal stores (ntstores) for large sequential writes (bypassing cache boosts bandwidth), limit threads hitting one DIMM (more than 4-12 thrash the XPBuffer and iMC), and steer clear of NUMA accesses (remote hits crater performance, up to 30x worse than DRAM’s 3.3x).&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;6-discussion&quot;&gt;6. Discussion&lt;&#x2F;h3&gt;
+&lt;p&gt;Looking ahead, the authors muse on how these tips might evolve. Extended ADR (eADR), including caches in the persistent domain, could nix ntstore needs. CXL might shift persistent memory paradigms, while bigger buffers or smaller blocks (unlike 256B) could tweak trade-offs—though power limits complicate that. The guidelines offer a roadmap for future NVM, even if Optane’s specifics change.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;7-related-work&quot;&gt;7. Related Work&lt;&#x2F;h3&gt;
+&lt;p&gt;Before Optane, NVM research relied on emulation. These shaped file systems, transactional models, and data structures, but lacked real hardware validation. This paper marks a pivot to tangible benchmarks.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;8-conclusion&quot;&gt;8. Conclusion&lt;&#x2F;h3&gt;
+&lt;p&gt;Optane DIMMs emerge slower (2x-3x DRAM latency) and more complex than expected, with thread scaling and write granularity tripping up performance. Coders bear the burden of optimization. As the first real benchmark of persistent memory, this study swaps speculation for data, spotlighting Optane’s promise and pitfalls.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;important-results-and-what-they-mean&quot;&gt;Important Results and What They Mean&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Emulation Errors&lt;&#x2F;strong&gt;: For years, researchers emulated non-volatile memory (NVM) with DRAM, tweaking it to guess how Optane might behave. Real tests cleared up this assumption.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Latency&#x2F;Bandwidth&lt;&#x2F;strong&gt;: Read latency hits 2x-3x higher than DRAM, with random reads suffering more than sequential ones due to internal buffering limits. Write bandwidth lags too, far below DRAM’s, and scalability takes a hit: while DRAM’s bandwidth climbs steadily with threads, Optane peaks at 4-12 threads (reads at 16, writes at 4) then drops off—a stark contrast to DRAM’s monotonic rise.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;256B Granularity&lt;&#x2F;strong&gt;: Small random writes (under 256B) amplify—updating one byte means rewriting the whole block, slashing efficiency and bandwidth. Sequential writes, though, shine, aligning with the block size to minimize overhead. This split explains why random access patterns tank performance while sequential ones improve performance.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Tail Latency&lt;&#x2F;strong&gt;: Reliability is reduced by rare tail latency spikes—up to 50 µs, 100x the typical latency. These outliers, likely from wear leveling or internal remapping, are sparse (0.006% of accesses) but cause serious problems. For systems needing predictability, like databases or real-time apps, this is a red flag.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;strengths-and-weaknesses-of-the-paper&quot;&gt;Strengths and Weaknesses of the Paper&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;strengths&quot;&gt;Strengths&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;strong&gt;First Real Optane Benchmark&lt;&#x2F;strong&gt;: This paper stands out as the first benchmark of Intel’s Optane DIMMs with actual hardware.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Practical Guidelines with Case Studies&lt;&#x2F;strong&gt;: Beyond measurements, it offers actionable advice—avoid small writes, limit threads, use ntstores—backed by real-world tweaks.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;weaknesses&quot;&gt;Weaknesses&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;strong&gt;Limited Testing Scope&lt;&#x2F;strong&gt;: The paper’s focus narrows to RocksDB and NOVA, with testing confined to App Direct mode. This leaves Memory Mode and broader applications unexplored, raising questions about how well the findings generalize across diverse workloads or setups.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;No Cost-Benefit Analysis or NVM Comparisons&lt;&#x2F;strong&gt;: It skips the economics—Optane’s cost “dramatically increases” compared to DRAM or SSDs, but there’s no breakdown of trade-offs or benefits to justify it. Nor does it stack Optane against other NVM technologies, leaving a gap in context.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;class-discussion&quot;&gt;Class Discussion&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Capacitors in 3D XPoint&lt;&#x2F;strong&gt;: The 3D XPoint explainer video sparked curiosity. Unlike DRAM’s 1T1C (one transistor, one capacitor) simplicity, 3D XPoint’s crosspoint structure ditches transistors for resistive switching, with capacitors likely aiding dense packing and fast bit access.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;256B Block Size&lt;&#x2F;strong&gt;: Why 256B? Is it baked into Optane’s DNA or a deliberate pick? Eugene wondered if smaller blocks (say, 64B) could ease small-write woes—random writes under 256B tank performance due to whole-block updates. Kyle Hale guessed 256B strikes a “good medium ground,” balancing efficiency and complexity. Smaller blocks might cut amplification but could spike power demands or shrink density, a trade-off Optane’s designers might have dodged.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;NUMA Puzzle&lt;&#x2F;strong&gt;: Optane’s NUMA penalty—up to 30x bandwidth drop vs. DRAM’s 3.3x. Class eyed iMC contention: mixed read-write loads (like 3:1 ratios) clog short queues, worse with remote nodes. Eugene suggested it’s less iMC and more NVDIMM thrashing, but DRAM handles NUMA better.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Thread Scaling&lt;&#x2F;strong&gt;: Bandwidth peaking at 4-12 threads then dropped. Eugene blamed XPBuffer thrashing—multiple threads trash its 16KB write-merging space. Class added iMC queues: slow Optane drainage blocks them, slashing throughput. Is it buffer size, queue depth, or both? How do we keep threads from tripping over each other?&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Interconnect Efficiency&lt;&#x2F;strong&gt;: Optane’s interconnect got scrutiny. How does it handle mixed read-write access? Class asked about gigabytes-per-second graphs (assuming bandwidth), wondering if it copes under chaos.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Commercial Fate&lt;&#x2F;strong&gt;: Intel’s 2022 Optane exit, after a $7B loss, hit hard. This was refered to as “swept under the rug.” Supply chain difficulty and high costs tanked it. Micron got out of persistent memory, but tinkering with persistent memory persists. CXL’s rising for persistent and disaggregated setups.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;eADR Shift&lt;&#x2F;strong&gt;: eADR was brought up — cache-inclusive ADR from Intel’s 3rd-gen Xeons. It simplifies coding (no ntstores or flushes) and boosts bandwidth by keeping caches persistent. Class saw it easing Optane’s quirks.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Security Risks&lt;&#x2F;strong&gt;: DIMM theft was mentioned. If someone takes an Optane DIMM, data’s readable. How big of a problem is this? For databases or HPC, it’s a dealbreaker; consumer use, maybe less so. Why no mitigation discussion in the paper?&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Hybrid Potential&lt;&#x2F;strong&gt;: The class pitched DRAM (1T1C speed) plus Optane (persistence). Class liked the idea: DRAM for fast random access, Optane for big persistent stores.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources:&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;An Empirical Guide to the Behavior and Use of Scalable Persistent Memory: &lt;a href=&quot;https:&#x2F;&#x2F;www.usenix.org&#x2F;conference&#x2F;fast20&#x2F;presentation&#x2F;yang&quot;&gt;http:&#x2F;&#x2F;web.cs.ucla.edu&#x2F;~todd&#x2F;research&#x2F;isca12.pdf&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;OSTEP Textbook Remzi Arpaci-Dusseau&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Computer Organization and Design RISC-V Edition The Hardware Software Interface 2nd Edition - December 11, 2020 Authors: David A. Patterson, John L. Hennessy&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Computer Architecture, Sixth Edition: A Quantitative Approach December 2017 Authors: John L. Hennessy, David A. Patterson&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;generative-ai&quot;&gt;Generative AI&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Link to specific Tools: &lt;a href=&quot;https:&#x2F;&#x2F;chatgpt.com&#x2F;&quot;&gt;https:&#x2F;&#x2F;chatgpt.com&#x2F;&lt;&#x2F;a&gt; &lt;a href=&quot;https:&#x2F;&#x2F;www.deepseek.com&#x2F;&quot;&gt;https:&#x2F;&#x2F;www.deepseek.com&#x2F;&lt;&#x2F;a&gt; &lt;a href=&quot;https:&#x2F;&#x2F;claude.ai&quot;&gt;https:&#x2F;&#x2F;claude.ai&lt;&#x2F;a&gt; &lt;a href=&quot;https:&#x2F;&#x2F;gemini.google.com&#x2F;app&quot;&gt;https:&#x2F;&#x2F;gemini.google.com&#x2F;app&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;&lt;strong&gt;Metric&lt;&#x2F;strong&gt;&lt;&#x2F;th&gt;&lt;th&gt;&lt;strong&gt;ChatGPT 4o (GPT-4o)&lt;&#x2F;strong&gt;&lt;&#x2F;th&gt;&lt;th&gt;&lt;strong&gt;DeepSeek R1&lt;&#x2F;strong&gt;&lt;&#x2F;th&gt;&lt;th&gt;&lt;strong&gt;Gemini 2.0 Flash&lt;&#x2F;strong&gt;&lt;&#x2F;th&gt;&lt;th&gt;&lt;strong&gt;Claude 3.7 Sonnet&lt;&#x2F;strong&gt;&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;strong&gt;MMLU Accuracy&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td&gt;88.7%&lt;&#x2F;td&gt;&lt;td&gt;85%&lt;&#x2F;td&gt;&lt;td&gt;80%&lt;&#x2F;td&gt;&lt;td&gt;88%&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;strong&gt;TruthfulQA Accuracy&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td&gt;65%&lt;&#x2F;td&gt;&lt;td&gt;60%&lt;&#x2F;td&gt;&lt;td&gt;55%&lt;&#x2F;td&gt;&lt;td&gt;62%&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;strong&gt;HellaSwag Accuracy&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td&gt;96%&lt;&#x2F;td&gt;&lt;td&gt;94%&lt;&#x2F;td&gt;&lt;td&gt;90%&lt;&#x2F;td&gt;&lt;td&gt;95%&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;strong&gt;GSM8K Accuracy&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td&gt;95%&lt;&#x2F;td&gt;&lt;td&gt;92%&lt;&#x2F;td&gt;&lt;td&gt;85%&lt;&#x2F;td&gt;&lt;td&gt;94%&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;strong&gt;BBH Accuracy&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td&gt;85%&lt;&#x2F;td&gt;&lt;td&gt;75%&lt;&#x2F;td&gt;&lt;td&gt;70%&lt;&#x2F;td&gt;&lt;td&gt;85%&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;strong&gt;HumanEval Pass Rate&lt;&#x2F;strong&gt;&lt;&#x2F;td&gt;&lt;td&gt;85%&lt;&#x2F;td&gt;&lt;td&gt;80%&lt;&#x2F;td&gt;&lt;td&gt;75%&lt;&#x2F;td&gt;&lt;td&gt;84%&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;h3 id=&quot;key-observations&quot;&gt;Key Observations&lt;&#x2F;h3&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;ChatGPT 4o&lt;&#x2F;strong&gt; consistently performs at or near the top across all metrics, achieving the highest average score of 85.78%. It stands out in knowledge (MMLU), truthfulness (TruthfulQA), commonsense reasoning (HellaSwag), mathematical reasoning (GSM8K), and code generation (HumanEval), while tying for the lead in advanced reasoning (BBH). This broad excellence makes it the most well-rounded model among those analyzed.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Claude 3.7 Sonnet&lt;&#x2F;strong&gt; is a very close second with an average score of 84.67%. It matches ChatGPT 4o in advanced reasoning (BBH) and performs strongly in most areas, though it falls slightly behind in truthfulness (TruthfulQA) and code generation (HumanEval). Its near parity with ChatGPT 4o highlights its competitive edge.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;DeepSeek R1&lt;&#x2F;strong&gt; secures a solid third place with an average score of 81.00%. It delivers competitive results across most metrics but lags in advanced reasoning (BBH) and truthfulness (TruthfulQA).&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Gemini 2.0 Flash&lt;&#x2F;strong&gt; trails with an average score of 75.83%, likely due to its design as a faster, smaller model optimized for efficiency.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;This tool was used to help generate ideas for the outline, provide explanations of keywords, and offer feedback on specific prose.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Generative AI tools are excellent tools for brainstorming, offering feedback, and providing explanations. These tools should not be trusted for accuracy. Any specific detail mentioned must be externally validated.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Concrete example: changed “A memory type that holds data after power loss. Has high density and sits between DRAM and SSD.” to “A type of memory that retains data even after power is lost, combining non-volatility with high density and often byte-addressable access, bridging the gap between DRAM and SSDs.”&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Information given could be misleading. For example, the LLM claimed that a weakness of the paper was that “Intel axed Optane in 2022 after a $7B loss, signaling a “lack of profit” that the paper doesn’t address. This omission sidesteps a critical real-world angle—why a promising tech flopped commercially—limiting its forward-looking relevance.” However, this paper came out before Intel “axed” optane in 2022 so this weakness should not be fairly considered.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>DRust: Language-Guided Distributed Shared Memory with Fine Granularity, Full Transparency, and Ultra Efficiency</title>
+                <pubDate>Mon, 17 Feb 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/drust/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/drust/</guid>
+                <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h1&gt;
+&lt;p&gt;The paper, &lt;em&gt;DRust: Language-Guided Distributed Shared Memory with Fine Granularity, Full Transparency, and Ultra Efficiency&lt;&#x2F;em&gt;, explores a novel approach that takes Rust’s ownership model and uses it to optimize the performance of a distributed shared memory (DSM) system. Integrating the ownership semantics into the coherence protocol, DRust eliminates unnecessary overhead from synchronization, allowing it to outperform current existing DSM systems.&lt;&#x2F;p&gt;
+&lt;p&gt;Traditional DSM systems face challenges such as synchronization overhead and the complexity of maintaining memory coherency and consistency across distributed nodes. DRust addresses these challenges with Rust’s memory safety features, and incorporates them into the DSM runtime. It ensures fine-grained memory coherence without needing to manually synchronize everything. This minimizes network traffic and bottlenecks stemming from synchronization, leading to a more efficient and scalable solution.&lt;&#x2F;p&gt;
+&lt;h1 id=&quot;overview&quot;&gt;Overview&lt;&#x2F;h1&gt;
+&lt;p&gt;DRust enhances distributed shared memory (DSM) systems by incorporating Rust’s ownership model, which guarantees memory safety and consistency. Rust’s core features, such as single-writer, multiple-reader (SWMR) semantics, allow DRust to track ownership, enabling automatic, fine-grained memory coherence without requiring explicit synchronization, reducing network overhead and bottlenecks commonly seen in traditional DSM systems.&lt;&#x2F;p&gt;
+&lt;p&gt;This system replaces the standard Rust pointers with distributed-aware structures which can track ownership and memory access across nodes. This approach allows objects to migrate based on ownership transfers, minimizing cache invalidations and reducing unnecessary network fetches. By integrating these features, DRust can manage memory coherence across distributed systems without additional synchronization costs, reducing communication traffic and accelerating memory access.&lt;&#x2F;p&gt;
+&lt;p&gt;DRust further optimizes performance by leveraging RDMA (Remote Direct Memory Access) for high-speed memory access between nodes. It also utilizes affinity-based scheduling to place threads close to the data they are working with, ensuring optimal data locality. This reduces the need for cross-node memory access, enhancing both scalability and performance. DRust integrates seamlessly with existing Rust applications, requiring only minimal modifications to the codebase, which allows developers to efficiently scale their applications to distributed environments with minimal overhead.&lt;&#x2F;p&gt;
+&lt;h1 id=&quot;results&quot;&gt;Results&lt;&#x2F;h1&gt;
+&lt;p&gt;In performance evaluations, DRust outperforms existing DSM systems, including GAM and Grappa, with significant speedups. Notably:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;DRust achieves a &lt;strong&gt;1.33x to 2.64x&lt;&#x2F;strong&gt; speedup over GAM.&lt;&#x2F;li&gt;
+&lt;li&gt;It shows &lt;strong&gt;2.53x to 29.16x&lt;&#x2F;strong&gt; speedup compared to Grappa.&lt;&#x2F;li&gt;
+&lt;li&gt;The system incurs only a &lt;strong&gt;2.42%&lt;&#x2F;strong&gt; slowdown compared to single-node execution, indicating minimal overhead.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;In real-world workload tests, DRust excels in areas such as DataFrame processing (e.g., Polars), where it achieves up to &lt;strong&gt;5.57x&lt;&#x2F;strong&gt; speedup over single-node execution. Social networking benchmarks (e.g., DeathStarBench) benefit from DRust’s ability to eliminate serialization overhead by passing references rather than data copies. For high-compute workloads like GEMM, DRust’s scheduling ensures effective scaling across nodes, minimizing communication bottlenecks.&lt;&#x2F;p&gt;
+&lt;h1 id=&quot;discussion&quot;&gt;Discussion&lt;&#x2F;h1&gt;
+&lt;p&gt;&lt;strong&gt;Why do we need single write? Why is that invariant important?&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Having a single write is important because it prevents multiple writes to the same data from happening. If there are multiple writes to the same data, an issue appears in the form of a question. &lt;em&gt;Who’s write are we going to take?&lt;&#x2F;em&gt; Having a single write allows the writes to be in some order so the information will gradually spread, but it also prevents conflicts and addition synchronization. Though if it’s just reading, everyone can have a copy because each copy will be the same, therefore there won’t be a conflict of which one is the “correct” one.&lt;&#x2F;li&gt;
+&lt;li&gt;If multiple writes were allowed, this would cause more overhead compared to single writes. With a language like Rust, programmers can rely on the language to handle synchronization, mapping, and other semantics, whereas if they’re using something like GAM, who enforces partial store order with asynchronous writes (significant overhead), it doesn’t map cleanly, leading to more overhead without single write enforcement&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;Can you explain runtime? Are startup files a part of the runtime system?&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The concept of runtime was explore a little bit, with an explanation where on a system with only one server, Rust will take care of coherency, but on a system with multiple servers, someone else would have to provide that coherency. DRust’s runtime is essentially normal Rust but with a distributed server library. Further explanations explained how runtime is built into the system, comparing C code and the use of the main function to clarify the role of runtime. Rust doesn’t natively support distributed systems, which is why you need a runtime component if using Rust in a distributed system.&lt;&#x2F;li&gt;
+&lt;li&gt;Embedded systems have a startup file that does a very similar thing. The startup file itself is a part of the runtime system, whereas a bootloader would not be as runtime is included in any file ran in a program.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;Is it adaptable to different types of hardware?&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Though the paper doesn’t talk a lot about hardware, DRust can be integrated into various types of hardware to manage coherency, assuming the hardware can support distributed shared memory (DSM). RMC is an example of hardware that does support DSM.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;Can we reason where messaging will happen with a write?&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Asynchronous requests involve a remote server deallocating the original object’s memory, which allows for more efficient memory management. Messaging occurs with mutable references, and optimizing those messages requires aligning the ownership and asynchronous processes. The memory ownership model is the same, meaning that fewer messages are required. Since only one owner has write access at a time, the model inherently limits the number of messages since only one mutable write can occur at a time. This allows the system to effectively scale with the coherence protocol.&lt;&#x2F;li&gt;
+&lt;li&gt;Showing the network traffic to demonstrate that there is reduced messaging could have been helpful, but it was noted that deallocation requests are asynchronous and don’t contribute to the overall cost.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;How does the system handle ownership changes and synchronization?&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Requiring a message to check if the data is stale, or ensuring ownership is valid, as this is managed by maintaining both the global and local addresses and the switching is based on the global access patterns. The server tree knows whenever a new allocation happens because when a write occurs, a synchronous message is sent to update the ownership.&lt;&#x2F;li&gt;
+&lt;li&gt;Ownership synchronization must happen first as read and write operations both depend on any ownership changes. Once ownership has updated, the read and write operations can proceed accordingly, ensuring consistency is maintained. During this process, no reads can occur, preventing accidentally reading garbage or outdated data.&lt;&#x2F;li&gt;
+&lt;li&gt;Unlike traditional systems, invalidation messages aren’t needed during a single write state because a global synchronization message is sent instead whenever a mutable value is taken. This further reduces overhead and simplifies coherence enforcement. Borrowing still requires synchronous communication which introduces some slowdown, leading to some overhead, but limited to about 2% from Rust to DRust with some optimizations. Additionally, if an object is updated within a single server, synchronization is not needed.&lt;&#x2F;li&gt;
+&lt;li&gt;In a typical DSM system, data is transferred at a granularity of a page, regardless of data size leading to IO amplification. IO amplification is when a storage device needs to perform a significantly larger amount of input&#x2F;output (I&#x2F;O) operations than what is requested by the user. This inefficiency appears due to sending the entire page regardless of how much actual data is on that page. DRust improves on this by allowing mutable state transitions without needing to send the entire page as it only sends the necessary object data. This reduces the network traffic as well as the storage overhead.  Additionally, if a write operation updates the entire object, an invalidation message could be sent without including the data.&lt;&#x2F;li&gt;
+&lt;li&gt;Ownership transfers during garbage collection could help prevent a cache from being backed up. It could also improve security and restrict third parties from accessing cached data, but this was not confirmed.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;&#x2F;h1&gt;
+&lt;p&gt;DRust represents a breakthrough in the design of distributed shared memory systems, integrating Rust’s ownership model to provide fine-grained memory coherence with minimum synchronization overhead. Its ability to reduce network traffic, improve scalability, and optimize memory access without requiring major changes to existing codebases makes it a powerful tool for modern distributed computing.&lt;&#x2F;p&gt;
+&lt;p&gt;While there are some limitations, DRust’s performance across a wide range of benchmarks shows how much potential it has in revolutionizing DSM systems. With further improvements, it could become a fundamental piece for future distributed computing applications&lt;&#x2F;p&gt;
+&lt;h1 id=&quot;references&quot;&gt;References&lt;&#x2F;h1&gt;
+&lt;ul&gt;
+&lt;li&gt;Paper: &lt;a href=&quot;https:&#x2F;&#x2F;www.usenix.org&#x2F;system&#x2F;files&#x2F;osdi24-ma-haoran.pdf&quot;&gt;https:&#x2F;&#x2F;www.usenix.org&#x2F;system&#x2F;files&#x2F;osdi24-ma-haoran.pdf&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Slides: &lt;a href=&quot;https:&#x2F;&#x2F;drive.google.com&#x2F;file&#x2F;d&#x2F;1mw51FuJ3MR3hRSj8RUZ_3DmiPsyvcwF0&#x2F;view?usp=sharing&quot;&gt;https:&#x2F;&#x2F;drive.google.com&#x2F;file&#x2F;d&#x2F;1mw51FuJ3MR3hRSj8RUZ_3DmiPsyvcwF0&#x2F;view?usp=sharing&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Video: &lt;a href=&quot;https:&#x2F;&#x2F;www.youtube.com&#x2F;watch?v=19JN3Kg2yYo&quot;&gt;https:&#x2F;&#x2F;www.youtube.com&#x2F;watch?v=19JN3Kg2yYo&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;DRust Full Coherence Protocol Details: &lt;a href=&quot;https:&#x2F;&#x2F;arxiv.org&#x2F;html&#x2F;2406.02803v2#A2&quot;&gt;https:&#x2F;&#x2F;arxiv.org&#x2F;html&#x2F;2406.02803v2#A2&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>IVY: A Shared Virtual Memory System for Parallel Computing</title>
+                <pubDate>Wed, 12 Feb 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/ivy/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/ivy/</guid>
+                <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h2&gt;
+&lt;p&gt;In this paper, we are introduced to IVY, a shared virtual memory system for parallel computing. Published in 1988, IVY was a concept designed for a single token ring topology that was implemented in Apollo workstations. The main idea was to evaluate if shared memory was a better alternative than a memory passing system, especially with loosely coupled microprocessors since there hadn’t been enough work done at the time.&lt;&#x2F;p&gt;
+&lt;p&gt;Rather than relying on message passaging, this new architecture coupled with IVY allowed for simultaneous use of virtual memories on processes happening in parallel processors. This approach highlights how shared virtual memory in parallel programs can exploit capabilities that aren’t feasible in memory passing.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;shared-memory-vs-memory-passing&quot;&gt;Shared Memory vs. Memory Passing&lt;&#x2F;h2&gt;
+&lt;p&gt;Memory passing is done through an interprocess communication, which does not use global data and relies on programmers to handle the memory passing through send and receive in parallel programs. This is not ideal as the communication process is slow and inefficient for process migration and handling complex data structures. These complications come from having multiple address spaces, which shared memory gets rid of. This in turn has no problem passing complex data structures as the shared memory address can be passed around using pointers. For parallel programming in a multiprocessor system, shared memory is the ideal memory system to implement.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;implementation&quot;&gt;Implementation&lt;&#x2F;h2&gt;
+&lt;p&gt;The implementation setup is established on the Apollo domain, an integrated system composed of workstations and servers connected in a ring topology. In this setup, IVY has 5 modules. These include process management, memory allocation, initialization, remote operation, and memory mapping. A key part of this implementation is the virtual memory address, a single address space that will be shared by all the processors.&lt;&#x2F;p&gt;
+&lt;p&gt;The address then gets partitioned into read only pages and write pages. Read only pages can exist on any node while write pages can only exist on one node. The memory mapper handles the read and write operations with three algorithms: the centralized manager, the fixed distributed manager, and dynamic distributed manager.&lt;&#x2F;p&gt;
+&lt;p&gt;When it comes to process management, IVY implements process control blocks (PCBs), which store information such as process state that are used for process migration and scheduling. This data structure implementation helps to simplify process migration and synchronization. For memory allocation, IVY uses a single level allocator. The authors do point out that a two level memory management approach would be more efficient, as this module only lets one processor allocate memory at a time.&lt;&#x2F;p&gt;
+&lt;p&gt;The remote operation module enables remote communication between the other modules in IVY. It uses a remote procedural call (RPC) to broadcast requests across the network and get responses, as well as forwarding requests from one processor to another. IVY is written in Pascal, which means programmers need to account for the nature of pascal procedure calls when implementing the system. It’s essential that programmers and compilers define what’s shared memory as well as private memory.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;&#x2F;h2&gt;
+&lt;p&gt;IVY is written in Pascal, and so are the experiments that were done to test for side effects in shared data structures as well as its granularity in parallelism. The first two experiments involve pascal programs of jacobi algorithms that solve linear equations and 3D partial differential equations. Other programs include the traveling salesman problem, matrix multiply, dot product, and split-merge sort. The results shown in figures 5 and 6 of the paper, we find that both split-merge sort and dot product tests do not yield linear speedups. As for the other programs, we find that the linear speedup increases when multiple processors are introduced. Multiprocessors have more memory, which means it will handle less page faults and have a better yield.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;ivy&#x2F;figure5.jpg&quot; alt=&quot;Algorithm speedups&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Another interesting point is that sometimes IVY achieves super-linear results, as shown in the following figure. This can be attributed to the low memory size of the uniprocessor that the IVY system was compared to - because of this low memory size, the uniprocessor was unable to hold all of a given algorithm’s (e.g., large matrix multiplication) page tables within memory, leading to huge performance losses in swapping pages from disk to memory. With IVY, since there were multiple processors being used, these algorithms could be stored in memory without swapping to disk - this leads to superlinear performance in the case of IVY. Proof of this large amount of page swapping is shown in Table 1. Of note is that if IVY was tested today, it likely would not have achieved superlinear results because of much larger standard memory capacities.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;ivy&#x2F;figure4.jpg&quot; alt=&quot;Large matrix speedup&quot; &#x2F;&gt;
+&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;ivy&#x2F;table1.jpg&quot; alt=&quot;Table 1&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;weakness&quot;&gt;Weakness&lt;&#x2F;h2&gt;
+&lt;p&gt;This paper has several weaknesses, but a notable one is the lack of comparison with memory passing. The paper makes a case for shared virtual memory, but it would’ve been insightful to see a performance difference to establish further validity. Another weakness is that the memory allocation is single level, which means only one processor can allocate memory at a time. Even the paper itself notes it would be more efficient to implement a two level memory management approach. Another weakness is that the high overhead of IVY is caused by its implementation in user mode, rather than system mode . As mentioned in the results, the split-merge sort and dot product tests did not yield a linear speed-up, which could come from bottlenecks such as the single level memory allocator as well as its high overhead.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;ivy&#x2F;figure6.jpg&quot; alt=&quot;Speedup of merge-split sort&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;class-discussion&quot;&gt;Class Discussion&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;is-pascal-a-dead-language&quot;&gt;Is Pascal a Dead Language?&lt;&#x2F;h3&gt;
+&lt;p&gt;No, Pascal is not entirely dead—it continues to influence modern programming languages, particularly Java. One of Pascal’s most significant contributions was its p-code (pseudo-code) virtual machine, which was the first implementation of bytecode execution. Although Java does not use p-code directly, its Java Virtual Machine (JVM) is conceptually similar, operating as a stack-based execution environment much like Pascal’s VM.&lt;&#x2F;p&gt;
+&lt;p&gt;When Java was developed, its creators aimed for object orientation and platform portability, leading them to adopt and extend ideas from Pascal’s virtual machine. In a way, Java’s runtime environment can be seen as an evolution of concepts pioneered by Pascal’s p-code system.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;user-mode-in-ivy&quot;&gt;User Mode in Ivy&lt;&#x2F;h3&gt;
+&lt;p&gt;Ivy operates in user mode, as mentioned on page 95 of the paper, where it describes its prototype implementation.&lt;&#x2F;p&gt;
+&lt;p&gt;This raises the question: Was Ivy implemented as a shared library? While the paper does not explicitly state this, the fact that Ivy runs in user mode suggests that key functionalities, such as memory management and page handling, were likely provided via user-space libraries rather than kernel modifications.&lt;&#x2F;p&gt;
+&lt;p&gt;One critical aspect of Ivy’s design is its page fault handling. The system provides a user-space page fault handler, meaning that when a page fault occurs, it is handled at the user level instead of being immediately processed by the operating system’s kernel. This is similar to mechanisms in modern Linux, where page fault handlers can be invoked in user space, a feature often used in networking and distributed systems to manage memory more efficiently.&lt;&#x2F;p&gt;
+&lt;p&gt;The Apollo page fault handler played a crucial role in Ivy’s implementation, allowing the system to intercept memory access requests and manage them at the application level. This approach provided flexibility but also introduced performance trade-offs, as user-space page fault handling is generally slower than direct kernel-managed memory operations.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-is-a-centralized-manager-in-ivy&quot;&gt;What is a Centralized Manager in Ivy?&lt;&#x2F;h3&gt;
+&lt;p&gt;In Ivy, a centralized manager is responsible for coordinating shared memory access and ownership changes between processors.&lt;&#x2F;p&gt;
+&lt;p&gt;When a processor (Processor A) needs access to a shared memory page, it must first interact with the centralized manager. The manager performs several key functions:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Checks the virtual-to-physical mapping to determine whether the requested page is already available on the requesting processor.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Handles invalidations and ownership transfers if the page is currently owned by another processor.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Ensures consistency by enforcing memory coherence rules across multiple nodes.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;If a requested page is not locally available, the centralized manager identifies the current owner of the page, facilitates its transfer, and invalidates other copies if necessary. This ensures that only one writable copy of a page exists in the system at any time.&lt;&#x2F;p&gt;
+&lt;p&gt;While this approach simplifies memory management, it introduces a potential bottleneck, as all processors must communicate with a single entity to request pages, leading to scalability concerns in larger systems.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;where-is-the-code-for-ivy&quot;&gt;Where is the Code for Ivy?&lt;&#x2F;h3&gt;
+&lt;p&gt;The original Ivy implementation was developed in the late 1980s, but its source code was not publicly released, as was common practice at the time.&lt;&#x2F;p&gt;
+&lt;p&gt;However, similar implementations have been developed based on Ivy’s protocol, including:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;LibDSM – A modern distributed shared memory (DSM) library that incorporates some of Ivy’s concepts.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Giant – An implementation that directly uses the Ivy protocol to provide shared virtual memory.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Although Ivy itself is not readily available, these projects serve as useful references for understanding and experimenting with distributed shared memory systems based on Ivy’s architecture.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;apollo-domain-os-vs-unix&quot;&gt;Apollo Domain OS vs. Unix&lt;&#x2F;h3&gt;
+&lt;p&gt;Apollo developed its own proprietary operating system called Domain&#x2F;OS, which was designed specifically for networked workstations and featured built-in support for distributed computing. Unlike Unix, which was widely adopted and evolved into various open-source and commercial distributions, Domain&#x2F;OS was a niche system tailored to Apollo hardware.&lt;&#x2F;p&gt;
+&lt;p&gt;However, Hewlett-Packard (HP) acquired Apollo in 1989 and eventually discontinued Domain&#x2F;OS, favoring Unix-based systems instead. This marked the end of Apollo’s independent operating system, as HP integrated Apollo’s technology into its own Unix-based platforms before phasing out Domain&#x2F;OS entirely.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;superlinear-scaling-and-memory-considerations-in-ivy&quot;&gt;Superlinear Scaling and Memory Considerations in Ivy&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;superlinear-scaling-observations&quot;&gt;Superlinear Scaling Observations&lt;&#x2F;h4&gt;
+&lt;p&gt;The Ivy paper highlights superlinear speedup for large matrix sizes, particularly in Figure 4, to demonstrate its performance benefits. This effect is likely due to reduced page faults as more processors increase the available memory pool, improving data locality. However, smaller matrices did not exhibit the same superlinear speedup, as their working set sizes were small enough to fit within a single processor’s cache, limiting the benefits of shared memory.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;why-examine-system-capabilities&quot;&gt;Why Examine System Capabilities?&lt;&#x2F;h4&gt;
+&lt;p&gt;The paper explores Ivy’s capabilities in order to address page thrashing and memory efficiency—critical factors in distributed shared memory (DSM) systems. This discussion ties into modern research on far memory and disaggregated memory, where memory is physically separated from compute nodes but accessed as if it were local, potentially reducing page migration overhead.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;shared-memory-and-memory-utilization&quot;&gt;Shared Memory and Memory Utilization&lt;&#x2F;h4&gt;
+&lt;p&gt;One important question not fully addressed in the paper is: How much memory is saved due to sharing? Ivy’s shared memory model allows multiple processors to access the same data, but a quantitative metric for memory utilization could provide better insights. Understanding the amount of memory saved through Ivy’s approach would help assess its efficiency compared to traditional message-passing models.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;causes-of-performance-degradation&quot;&gt;Causes of Performance Degradation&lt;&#x2F;h4&gt;
+&lt;p&gt;The paper notes that performance curves flatten or degrade due to process migration overhead and false sharing.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Process migration occurs when a process moves between nodes, requiring memory transfers that can cause delays.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;False sharing happens when multiple processors frequently access the same memory page, even if they are working on separate data within that page, leading to unnecessary invalidations and cache coherence traffic.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;A useful improvement would have been software counters to track these slowdowns, allowing for a more detailed analysis of bottlenecks in Ivy’s performance.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;virtual-memory-and-disaggregated-memory&quot;&gt;Virtual Memory and Disaggregated Memory&lt;&#x2F;h4&gt;
+&lt;p&gt;Ivy’s use of virtual shared memory raises the question of how disaggregated memory architectures—where memory and compute resources are physically separated—might have improved its performance. Modern interconnects like PCIe Express Link could potentially reduce the latency of remote memory accesses, making Ivy’s shared memory model more practical in today’s hardware environments.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;could-hardware-modifications-improve-ivy&quot;&gt;Could Hardware Modifications Improve Ivy?&lt;&#x2F;h3&gt;
+&lt;p&gt;Yes, hardware advancements could have significantly improved Ivy’s performance. Since the system relied on software-based shared virtual memory (SVM), many of its inefficiencies stemmed from high latency memory accesses, page migration overhead, and slow interconnects.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;potential-hardware-improvements&quot;&gt;Potential Hardware Improvements:&lt;&#x2F;h4&gt;
+&lt;ol&gt;
+&lt;li&gt;Faster Interconnects (e.g., PCIe Express Link)&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Ivy used a 12 MB&#x2F;s Apollo ring network, which became a major bottleneck.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Modern interconnects like PCIe Express Link or CXL (Compute Express Link) could drastically reduce memory access latency and improve bandwidth, making shared virtual memory much more viable.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Hardware-managed remote memory access (RMA) could eliminate some of the overhead caused by software-driven page migrations.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;ol start=&quot;3&quot;&gt;
+&lt;li&gt;Dedicated Hardware for Shared Memory Management&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Ivy relied on software page fault handling, which was slow.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Hardware-based page migration and cache coherence mechanisms, like those found in NUMA (Non-Uniform Memory Access) architectures, could have significantly reduced the overhead.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Specialized memory controllers could have handled page tracking and ownership resolution at the hardware level rather than relying on a centralized software manager.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;ol start=&quot;5&quot;&gt;
+&lt;li&gt;Improvements in Cache Coherence Mechanisms&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Ivy suffered from false sharing and excessive page invalidations.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Hardware-assisted coherence protocols, such as directory-based coherence or MOESI (Modified, Owner, Exclusive, Shared, Invalid) protocols, could have reduced unnecessary memory traffic.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;ahead-of-its-time&quot;&gt;Ahead of Its Time&lt;&#x2F;h4&gt;
+&lt;p&gt;Ivy was a pioneering system, introducing shared virtual memory at a time when hardware was not yet mature enough to fully support it.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The concept of distributed shared memory (DSM) later re-emerged in systems like TreadMarks (1989) and modern far-memory architectures.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Had Ivy been implemented on modern hardware with high-speed interconnects, memory disaggregation, and improved cache coherence, it could have been a viable alternative to message-passing models.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Ultimately, Ivy did not receive the implementation it truly deserved at the time due to hardware limitations. However, its core ideas remain relevant in today’s discussions on distributed memory, disaggregated computing, and heterogeneous architectures.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;ivy-s-industry-adoption-and-modern-relevance&quot;&gt;Ivy’s Industry Adoption and Modern Relevance&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;not-adopted-in-industry-but-still-used-in-research&quot;&gt;Not Adopted in Industry, but Still Used in Research&lt;&#x2F;h4&gt;
+&lt;p&gt;Ivy’s shared virtual memory model was never widely adopted in industry. Instead, the industry moved towards message-passing architectures, which became the dominant paradigm in high-performance computing (HPC) and distributed systems. However, researchers continue to explore shared virtual memory concepts, particularly in the context of far memory and disaggregated memory architectures.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;far-memory-and-modern-trends&quot;&gt;Far Memory and Modern Trends&lt;&#x2F;h4&gt;
+&lt;p&gt;One of the key takeaways from Ivy’s design is that it used virtual memory numbers to trigger software-based page faults, a mechanism that could have been implemented in hardware for better performance. This tradeoff between software vs. hardware page fault handling remains relevant today, particularly as far memory architectures gain traction.&lt;&#x2F;p&gt;
+&lt;p&gt;Far memory architectures aim to:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Reduce page thrashing by allowing memory to be shared across multiple nodes with minimal migration overhead.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Leverage fast interconnects (e.g., CXL, PCIe Express Link) to provide low-latency memory access.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;trade-offs-in-software-page-fault-handling&quot;&gt;Trade-offs in Software Page Fault Handling&lt;&#x2F;h4&gt;
+&lt;p&gt;Ivy’s software-based page fault handler provided flexibility but introduced additional overhead. A key advantage of software page fault handling is that the CPU can perform other work while waiting for a page to be fetched—a feature that modern operating systems, such as Linux, continue to leverage.&lt;&#x2F;p&gt;
+&lt;p&gt;However, Ivy’s implementation had limitations:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Write protection was supported, but there was no mechanism to update read protection dynamically, relying entirely on hardware mechanisms.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;There was a plan to implement read protection updates, but it was never completed in the Ivy prototype.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;lessons-for-modern-systems&quot;&gt;Lessons for Modern Systems&lt;&#x2F;h4&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Balancing software and hardware implementations is crucial. While software page fault handling provides flexibility, hardware-assisted page fault resolution (as seen in modern NUMA and memory-disaggregated systems) can drastically improve performance.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Buffering techniques can reduce page faults, but they introduce data staleness issues, which must be managed carefully in consistency models.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;The core challenges Ivy faced—efficient memory access, process migration, and minimizing false sharing—are still relevant today, particularly as researchers explore disaggregated memory architectures.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;treadmarks-a-distributed-shared-memory-system-similar-to-ivy&quot;&gt;TreadMarks: A Distributed Shared Memory System Similar to Ivy&lt;&#x2F;h3&gt;
+&lt;p&gt;TreadMarks, released in 1989, is a distributed shared memory (DSM) system designed for standard workstations and operating systems, particularly Unix-based systems.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;how-treadmarks-compares-to-ivy&quot;&gt;How TreadMarks Compares to Ivy&lt;&#x2F;h4&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Conceptually Similar: Like Ivy, TreadMarks provides a shared virtual memory abstraction for loosely coupled multiprocessors.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Key Difference: Unlike Ivy, which was implemented on Apollo workstations with a ring network, TreadMarks was designed to work on commodity Unix-based workstations connected via standard networking.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Lack of Citation: Interestingly, TreadMarks does not cite the Ivy paper, despite their similarities in approach. This could be due to independent development or a lack of awareness about Ivy’s contributions at the time.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;significance-of-treadmarks&quot;&gt;Significance of TreadMarks&lt;&#x2F;h4&gt;
+&lt;p&gt;TreadMarks became one of the more well-known DSM implementations, demonstrating that distributed shared memory could be implemented on standard hardware and operating systems rather than requiring specialized architectures. While neither Ivy nor TreadMarks saw widespread industrial adoption, the ideas explored in these systems continue to inform modern research in far memory, memory disaggregation, and distributed computing.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;memory-allocation-and-process-blocking-in-ivy&quot;&gt;Memory Allocation and Process Blocking in Ivy&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;system-level-lock-for-memory-allocation&quot;&gt;System-Level Lock for Memory Allocation&lt;&#x2F;h4&gt;
+&lt;p&gt;Ivy enforces a system-wide lock for memory allocation, meaning that only one processor can allocate memory at a time. When a processor gains the lock, all other processors attempting to allocate memory must wait until the lock is released, effectively blocking their execution during this time.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;why-is-locking-necessary&quot;&gt;Why is Locking Necessary?&lt;&#x2F;h4&gt;
+&lt;p&gt;Since Ivy uses a shared virtual address space, proper synchronization is required to prevent multiple processors from allocating the same memory region simultaneously. Without locking, two processors could:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Allocate overlapping memory regions, causing memory corruption.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Map to the same virtual address, leading to incorrect writes and inconsistency in the shared memory system.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Trigger race conditions, making it difficult to maintain coherence across nodes.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;By serializing memory allocation with a global lock, Ivy ensures correctness but introduces a performance bottleneck, particularly as the number of processors increases.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;impact-of-the-apollo-ring-network&quot;&gt;Impact of the Apollo Ring Network&lt;&#x2F;h4&gt;
+&lt;p&gt;Ivy was implemented on an Apollo ring network with a bandwidth of 12 MB&#x2F;s, which was relatively slow even for its time. This limited bandwidth exacerbated the performance overhead caused by:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Global memory allocation locks, which forced processors to wait rather than proceeding with execution.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Memory page transfers, which had to traverse the ring network, further slowing down the allocation process.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;In modern systems, such bottlenecks are mitigated by NUMA-aware memory allocation, distributed memory management, and high-bandwidth interconnects like PCIe, CXL, and Infiniband.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;typical-use-case-for-ivy-and-apollo-workstations&quot;&gt;Typical Use Case for Ivy and Apollo Workstations&lt;&#x2F;h3&gt;
+&lt;p&gt;Ivy was designed for workstations rather than large-scale supercomputers. It was implemented on Apollo workstations, which were primarily used by engineering and CAD (Computer-Aided Design) professionals. Major Apollo customers included:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Mentor Graphics&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Ford&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;General Motors&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Boeing&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;These industries required high-performance computing for design, modeling, and simulation, making Ivy’s shared virtual memory approach appealing for parallel processing workloads on distributed workstations.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;industry-context-custom-vs-commodity-hpc&quot;&gt;Industry Context: Custom vs. Commodity HPC&lt;&#x2F;h3&gt;
+&lt;p&gt;During the late 1980s and early 1990s, the industry saw a divide in high-performance computing (HPC):&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Custom-built supercomputers dominated the HPC landscape.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Researchers and engineers began exploring commodity-based HPC clusters as a lower-cost alternative.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Ivy represented one approach to enabling commodity-based HPC, leveraging distributed shared memory across standard workstations instead of relying on expensive custom-built supercomputers.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;message-passing-vs-shared-virtual-memory&quot;&gt;Message Passing vs. Shared Virtual Memory&lt;&#x2F;h3&gt;
+&lt;p&gt;A key question at the time was whether shared virtual memory (SVM) (as seen in Ivy) or message-passing models (such as MPI) would be more effective for commodity-based HPC.&lt;&#x2F;p&gt;
+&lt;p&gt;This discussion eventually led to the Beowulf cluster model, which emerged in the 1990s.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Beowulf clusters used commodity hardware connected via message passing networks instead of shared virtual memory.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Message passing became the dominant paradigm in distributed computing, largely due to its scalability and lower overhead compared to SVM.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;While Ivy’s shared virtual memory model was ahead of its time, it ultimately did not become the standard for HPC, as message-passing techniques proved to be more efficient and scalable for large distributed systems.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;apollo-ring-network-and-alternative-interconnects&quot;&gt;Apollo Ring Network and Alternative Interconnects&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;was-the-apollo-ring-network-unidirectional&quot;&gt;Was the Apollo Ring Network Unidirectional?&lt;&#x2F;h4&gt;
+&lt;p&gt;Yes, the Apollo ring network used in Ivy was a token-based ring, meaning that data traveled in one direction around the network. This is similar to a relay race, where a token (message) is passed from one node to the next in a circular fashion.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;comparison-with-other-network-topologies&quot;&gt;Comparison with Other Network Topologies&lt;&#x2F;h4&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Token Ring: Used in Apollo’s implementation. A single token circulates, and only the node holding the token can transmit.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Ethernet: Uses a shared medium where multiple nodes can attempt to transmit simultaneously, requiring collision detection and retransmission.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Bus Network: A single shared communication channel where all nodes can hear transmissions, leading to congestion at high loads.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Mesh Network: Nodes are connected in a grid-like structure, allowing direct communication between neighbors (North, South, East, West).&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Torus Network: A grid network wrapped into a ring-like topology, reducing hop distance and improving communication latency.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;High Radix Networks: Networks with many connections per node, improving performance but expensive and difficult to implement due to wiring constraints.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Dragonfly Network: A hybrid of high-radix and low-diameter networks, used in modern supercomputers to minimize hop count.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;why-the-ring-network-was-a-poor-choice-for-ivy&quot;&gt;Why the Ring Network was a Poor Choice for Ivy&lt;&#x2F;h4&gt;
+&lt;p&gt;The ring topology used in Apollo’s implementation was a bottleneck because:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;It did not scale well as more nodes were added.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;It forced all traffic to flow in a single direction, leading to delays.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;A single point of failure could disrupt the entire network.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;modern-networks-and-ivy-s-relevance&quot;&gt;Modern Networks and Ivy’s Relevance&lt;&#x2F;h4&gt;
+&lt;p&gt;Most modern supercomputers use a combination of high-radix and mesh-based interconnects, optimizing bandwidth and reducing hop count for communication.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The PlayStation 3 (PS3) used a ring network for its interconnect but with higher bandwidth, making it more efficient than the Apollo ring network.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Ivy itself was not dependent on the ring network; it was simply implemented on one. Had it been deployed on a more scalable network topology (e.g., mesh or torus), performance could have been significantly improved.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;key-takeaways&quot;&gt;Key Takeaways&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;The Apollo ring network was unidirectional, making it a poor choice for scaling Ivy.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Mesh and torus networks would have provided better performance.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Modern HPC systems use hybrid interconnects, such as Dragonfly, to minimize latency and maximize bandwidth.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Ivy’s shared virtual memory model was limited more by its network implementation than by its fundamental design.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;evaluation-of-ivy-in-the-context-of-cs-research&quot;&gt;Evaluation of Ivy in the Context of CS Research&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;cs-research-in-the-1980s-vs-today&quot;&gt;CS Research in the 1980s vs. Today&lt;&#x2F;h4&gt;
+&lt;p&gt;The bar for publishing computer science research was lower in the 1980s compared to today.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;There were fewer competitors in shared memory research, making Ivy a remarkable contribution at the time, though not revolutionary by today’s standards.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;If submitted today, the Ivy paper would likely be rejected, as modern research demands rigorous comparisons with alternative approaches and more extensive performance evaluations.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;CS students today have fewer “low-hanging fruit” problems to tackle, as many foundational ideas in parallel computing, distributed systems, and memory architectures have already been explored.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;ivy-s-main-weakness-lack-of-comparison-with-message-passing&quot;&gt;Ivy’s Main Weakness: Lack of Comparison with Message Passing&lt;&#x2F;h4&gt;
+&lt;p&gt;One of Ivy’s biggest shortcomings is that it does not compare its performance against message-passing techniques, which later became the dominant model for distributed computing (e.g., MPI). Without such a comparison, it’s difficult to assess whether Ivy’s shared virtual memory approach was truly superior for real-world workloads.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;how-does-rust-play-into-this&quot;&gt;How Does Rust Play Into This?&lt;&#x2F;h4&gt;
+&lt;p&gt;While the Ivy paper predates Rust, modern Rust-based systems programming offers features that could mitigate some of Ivy’s weaknesses, particularly in memory safety and concurrency:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Rust’s ownership model could help eliminate race conditions and ensure safe access to shared memory without requiring a centralized manager.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Rust’s async and multi-threading features could help in designing more efficient distributed shared memory (DSM) systems with reduced overhead.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Rust’s low-level control and performance optimizations make it well-suited for high-performance distributed systems, which Ivy aimed to be.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;While Ivy’s design was ahead of its time, it suffered from high overhead and poor scalability. Modern techniques—including better interconnects, Rust-based concurrency management, and message-passing optimizations—would likely yield a more efficient implementation of a similar concept today.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;source&quot;&gt;Source&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;IVY: A Shared Virtual Memory System for Parallel Computing. https:&#x2F;&#x2F;systems.cs.columbia.edu&#x2F;ds2-class&#x2F;papers&#x2F;li-ivy.pdf&lt;&#x2F;li&gt;
+&lt;li&gt;https:&#x2F;&#x2F;www.eecg.toronto.edu&#x2F;~amza&#x2F;ece1747h&#x2F;papers&#x2F;treadmarks94.pdf&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>Segcache: a memory-efficient and scalable in-memory key-value cache for small objects</title>
+                <pubDate>Mon, 10 Feb 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/segcache/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/segcache/</guid>
+                <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h1&gt;
+&lt;p&gt;Modern web applications use in-memory key-value caches such as Memcached and Redis to ensure fast response times and high throughput. However, these systems have some drawbacks, including high metadata overhead, inefficient expiration management, and challenges with scalability. This paper presents Segcache, a new caching solution that addresses these issues by reimagining the way objects are stored and managed.&lt;&#x2F;p&gt;
+&lt;p&gt;Segcache takes a different approach. TTL-indexed segment chains group objects that have similar creation and expiration times, making it easier to expire and evict a bunch of data at the same time. Metadata sharing reduces per-object overhead down to just 5 bytes, a 91% reduction compared to Memcached, by merging the metadata into shared segment headers. Instead of evicting objects one by one, merge-based eviction removes entire segments, keeping the more frequently accessed data while still getting memory space back.&lt;&#x2F;p&gt;
+&lt;h1 id=&quot;segcache-design-and-implementation&quot;&gt;Segcache Design and Implementation&lt;&#x2F;h1&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;segcache&#x2F;fig-3.png&quot; alt=&quot;Figure 3&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;As illustrated in the figure above, Segcache consists of three main components:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;TTL Buckets:&lt;&#x2F;strong&gt; used for reclaiming expired objects.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Object Store:&lt;&#x2F;strong&gt; used to store segments as a log.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Hash table:&lt;&#x2F;strong&gt; used for object lookup.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;Segcache is implemented as a storage module within the open-sourced Pelikan project. [5], [6]&lt;&#x2F;p&gt;
+&lt;h1 id=&quot;results&quot;&gt;Results&lt;&#x2F;h1&gt;
+&lt;p&gt;These optimizations lead to significant performance gains. Compared to existing caching systems, Segcache uses 22-60% less memory and compared to Memcached on a single thread, it delivers up to 40% better throughput. It also scales pretty well, achieving an 8x speedup over Memcached with 24 threads.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;segcache&#x2F;fig-10.png&quot; alt=&quot;Figure 10&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h1 id=&quot;discussion&quot;&gt;Discussion&lt;&#x2F;h1&gt;
+&lt;p&gt;&lt;strong&gt;Leader’s comment&lt;&#x2F;strong&gt;: Segcache doesn’t need to do a full-cache scan in order for it to remove expired objects, which helps improve its efficiency, but also reduces the overhead seen in traditional caching systems.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;class-discussion&quot;&gt;Class discussion&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Q: What is the granularity at which locks are used?&lt;&#x2F;strong&gt; &lt;strong&gt;A:&lt;&#x2F;strong&gt; Just have locks at segment granularity.&lt;&#x2F;li&gt;
+&lt;li&gt;Segment can have objects that are modified by two clients at a time - if puts are run concurrently could get invalid state of segment so need to enforce mutual exclusion to ensure correctness,&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Q: What do the dotted lines in the graph (Fig 8 in [1]) below represent?&lt;&#x2F;strong&gt; &lt;strong&gt;A:&lt;&#x2F;strong&gt; The dotted lines represent the metadata size in each implementations. Smaller the object metadata size, the better miss ratio. Authors of the paper should’ve explained this better in the paper.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;segcache&#x2F;fig-8.png&quot; alt=&quot;Figure 8&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Q: Everywhere in the paper authors say relative miss ratio, i.e. relative to production [2], etc, why show against production?&lt;&#x2F;strong&gt; &lt;strong&gt;A:&lt;&#x2F;strong&gt; They had to pick something, If not in production why would they choose it?&lt;&#x2F;li&gt;
+&lt;li&gt;Patterns along the gray bars in graphs are better for readability.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Q: What is the relation ship between objects and segments?&lt;&#x2F;strong&gt; &lt;strong&gt;A:&lt;&#x2F;strong&gt; Objects are contained in segments. We could have key just in segments, all the segments get populated with just key updates.  Have to have some way to collapse them.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Q: In the author’s presentation video, they claim that S3 gets filled you just add segment to end.  But segment is fixed size, how does that work?&lt;&#x2F;strong&gt; &lt;strong&gt;A:&lt;&#x2F;strong&gt; If you run out of slots in a segment you add a new one.  There’s no limit on the number of segments but each is fixed size.  If you fill one up you add a new one. Also, the number of buckets are fixed then the length of linked list is arbitrary.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Q: How do you read objects?  Do you have to walk multiple segments or just one?&lt;&#x2F;strong&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;TTL is not just a technical requirement but also a legal one (GDPR law passed in EU).&lt;&#x2F;li&gt;
+&lt;li&gt;Apparently there are people already building off of segcache. Students in Australia are building hypercache building off of this [4]. Took bucket idea and expiration.&lt;&#x2F;li&gt;
+&lt;li&gt;SQLite has an in-memory implementation, and does not work with multi-threaded apps, does not have proper locking and documentation says is unsafe.  Nevertheless companies still use it. Sometimes you want to do a JOIN.  Moderns DBMS have on-the-fly JOINs.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Q: Does persistent storage have to be disk?&lt;&#x2F;strong&gt;  &lt;strong&gt;A:&lt;&#x2F;strong&gt; LSM trees are usually designed for SSDs.  When talking about flash storage you have to worry about wear-leveling, so if you just take a naive log structured implementation you could wear out cells if you don’t implement compaction carefully.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Q: Benefits of log-structured trees?&lt;&#x2F;strong&gt; &lt;strong&gt;A:&lt;&#x2F;strong&gt; many log structured systems batch writes so for correctness they need to be careful to get proper results.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;&#x2F;h1&gt;
+&lt;p&gt;In conclusion, Segcache uses a TTL-indexed segment structured storage mechanism to achieve high throughput, high scalability and high memory efficiency when compared to the existing state-of-the-art research&#x2F;production level solutions.&lt;&#x2F;p&gt;
+&lt;h1 id=&quot;references&quot;&gt;References&lt;&#x2F;h1&gt;
+&lt;ol&gt;
+&lt;li&gt;Paper: &lt;a href=&quot;https:&#x2F;&#x2F;www.usenix.org&#x2F;system&#x2F;files&#x2F;nsdi21-yang.pdf&quot;&gt;https:&#x2F;&#x2F;www.usenix.org&#x2F;system&#x2F;files&#x2F;nsdi21-yang.pdf&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Slides:&lt;a href=&quot;https:&#x2F;&#x2F;www.usenix.org&#x2F;system&#x2F;files&#x2F;nsdi21_slides_yang-juncheng.pdf&quot;&gt;https:&#x2F;&#x2F;www.usenix.org&#x2F;system&#x2F;files&#x2F;nsdi21_slides_yang-juncheng.pdf&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Video: &lt;a href=&quot;https:&#x2F;&#x2F;www.youtube.com&#x2F;watch?v=s7YtO0rk9WM&quot;&gt;https:&#x2F;&#x2F;www.youtube.com&#x2F;watch?v=s7YtO0rk9WM&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;HyperCache: &lt;a href=&quot;https:&#x2F;&#x2F;shbakram.github.io&#x2F;assets&#x2F;papers&#x2F;honors-thesis-junming.pdf&quot;&gt;https:&#x2F;&#x2F;shbakram.github.io&#x2F;assets&#x2F;papers&#x2F;honors-thesis-junming.pdf&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;http:&#x2F;&#x2F;www.github.com&#x2F;twitter&#x2F;pelikan&quot;&gt;http:&#x2F;&#x2F;www.github.com&#x2F;twitter&#x2F;pelikan&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;http:&#x2F;&#x2F;www.github.com&#x2F;thesys-lab&#x2F;segcache&quot;&gt;http:&#x2F;&#x2F;www.github.com&#x2F;thesys-lab&#x2F;segcache&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>HotStuff: BFT Consensus with Linearity and Responsiveness</title>
+                <pubDate>Wed, 05 Feb 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/hotstuff/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/hotstuff/</guid>
+                <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h2&gt;
+&lt;p&gt;HotStuff is a Byzantine Fault Tolerance (BFT) consensus protocol that achieves much lower time complexity than previous BFT consensus implementations (i.e., PBFT, SBFT, etc). HotStuff is implemented for partially synchronous systems. It achieves a lower time complexity by using a 4-step design, pipelining (in chained HotStuff), and message cryptography. HotStuff also provides optimistic responsiveness.&lt;&#x2F;p&gt;
+&lt;p&gt;There are several parts of any BFT protocol: first, the BFT protocol must provide a view-change, which is an algorithm that allows a new leader to collect information and send it to the follower nodes. Second, the BFT protocol must provide a way for all the nodes to come to a consensus, which is dependent on the BFT protocol itself.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;keywords&quot;&gt;Keywords&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;BFT: Byzantine Fault Tolerance; toleration of faulty&#x2F;malicious nodes.&lt;&#x2F;li&gt;
+&lt;li&gt;Consensus: Multiple nodes coming to an agreement on a subject.&lt;&#x2F;li&gt;
+&lt;li&gt;GST: Global Synchronization Time, or the point in time where afterwards a message has a known transmission bound.&lt;&#x2F;li&gt;
+&lt;li&gt;Optimistic responsiveness: A guarantee that a non-faulty leader node will be able to drive a system to consensus after a known condition (i.e., after GST) in a time frame dependent on the actual delays of messages on the network.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;problem&quot;&gt;Problem&lt;&#x2F;h2&gt;
+&lt;p&gt;Current BFT protocols do not scale well for larger-node distributed systems (PBFT, SBFT, etc.); some protocols accomplish consensus in O(N2) time, with N being the number of nodes. Hotstuff remedies this problem by having a time complexity of O(N) for consensus and O(N) for leader replacement. See the below figure (Table 1) for a breakdown of the time complexities of different BFT protocols.
+&lt;img src=&quot;https:&#x2F;&#x2F;github.com&#x2F;user-attachments&#x2F;assets&#x2F;0cdeb461-3d70-4472-a770-bd37f9287e47&quot; alt=&quot;Performance&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;implementation&quot;&gt;Implementation&lt;&#x2F;h2&gt;
+&lt;p&gt;HotStuff has 4 steps:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Prepare - The leader node sends a proposal to all follower nodes; the follower nodes determine if the proposal is valid and if so, they send prepare votes to the leader.&lt;&#x2F;li&gt;
+&lt;li&gt;Pre-Commit - The leader waits for the followers to agree to a proposal (get pre-commit votes from follower nodes), then combines these votes into a pre-commit QC and sends it to all nodes for authentication.&lt;&#x2F;li&gt;
+&lt;li&gt;Commit - Follower nodes vote on moving to the Commit stage. If n-f nodes agree to move to the Commit stage, then they are locked into that commit QC.&lt;&#x2F;li&gt;
+&lt;li&gt;Decide - Hotstuff moves to the next view.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;HotStuff uses Cryptography for messages: each node has a signature assigned to it, which is used to provide proof that a message comes from a given node. The signatures from each node are aggregated and merged into a Quorum Certificate (QC), which allows for a simple and fast way to see if a consensus has been reached or not. This decreases the number of signatures required to be authenticated to O(N) time.&lt;&#x2F;p&gt;
+&lt;p&gt;The chained implementation of HotStuff allows for pipelining - a set of nodes can be in different views at the same time, with each view being in a different HotStuff stage. This allows for more parallelism and better performance.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;class-discussion&quot;&gt;Class Discussion&lt;&#x2F;h2&gt;
+&lt;p&gt;Is the paper and accompanying slides based on the basic version of HotStuff, or the pipelined version of HotStuff?&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The paper goes over both versions, with performance comparisons being drawn between the two in the slides.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Can a leader election happen between the two command stages? Does it ever happen?&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;HotStuff can have different leaders between commands. The table in the slides showcases a chained HotStuff pipeline example.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;What does optimistic responsiveness mean?&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Optimistic responsiveness ensures that even with a faulty leader, a system can elect a new leader and can keep going.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;For all the protocols being tested in Table 1, are all the protocols in the table partially synchronous models or partially asynchronous?&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Asynchronous BFT protocols cannot exist (they cannot reach consensus); partially synchronous means the same thing as partially asynchronous, but the table uses BFT protocols that are labeled as partially synchronous.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Is HotStuff used in industry?&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Hotstuff was used for quite a bit at Facebook, it’s still recent, so there is not as much adoption as one would expect.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;For a distributed system that requires consistent data, would BFT be the beneficial choice?&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;If your system and nodes are secured, you probably don’t need BFT.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;sources&quot;&gt;sources&lt;&#x2F;h2&gt;
+&lt;p&gt;https:&#x2F;&#x2F;dl.acm.org&#x2F;doi&#x2F;10.1145&#x2F;3293611.3331591&lt;&#x2F;p&gt;
+&lt;p&gt;https:&#x2F;&#x2F;courses.corelab.ntua.gr&#x2F;pluginfile.php&#x2F;9663&#x2F;course&#x2F;section&#x2F;1387&#x2F;22-23.atc.balla.pdf&lt;&#x2F;p&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>In Search of an Understandable Consensus Algorithm</title>
+                <pubDate>Mon, 03 Feb 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/understandable-consensus-algorithm/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/understandable-consensus-algorithm/</guid>
+                <description>&lt;h2 id=&quot;background&quot;&gt;Background&lt;&#x2F;h2&gt;
+&lt;p&gt;Raft is a consensus algorithm that was created by two researchers at Stanford University in order to create a more understandable algorithm than Paxos. These algorithms were created for separate servers that work together to form a coherent group. The benefit of this working model is that the group can survive the death of some of the separate servers. The two researchers attempted to learn Paxos for over a year but were ultimately unsuccessful. The researchers decided that a new consensus algorithm needed to be designed with understandability at the forefront.&lt;&#x2F;p&gt;
+&lt;p&gt;In order to create a more understandable consensus algorithm the authors focused on decomposition of the solutions into three parts: leader election, log replication, and safety mechanisms. If the solutions could be broken down into smaller pieces, this would create more manageable pieces for understanding and using Raft. Another technique they used to increase the understandability was reducing the state spaces to simplify behavior and decrease nondeterminism. Unlike Paxos, which allows entries in the log to be entered in different ways, Raft ensures all logs match the leader’s log, avoiding inconsistencies and this stems from having a leader, replicating logs to all systems, and the leader enforcing a log order.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;main-contributions&quot;&gt;Main Contributions&lt;&#x2F;h2&gt;
+&lt;p&gt;The researchers contributed a new consensus algorithm that is open source.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;&#x2F;h2&gt;
+&lt;p&gt;The results of this paper showed that students scored higher test scores for Raft when given lectures about Raft and Paxos with the order of the lectures distributed evenly across the test group. 33 students out of 43 scored higher on the Raft test than on the Paxos test. The other result that was discussed in the paper was that the performance of Raft is comparable to Paxos.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;impacts&quot;&gt;Impacts&lt;&#x2F;h2&gt;
+&lt;p&gt;The new consensus algorithm, Raft, was quickly and widely adopted which is in stark contrast to Paxos. Paxos was created in the late 1970s by Leslie Lamport but even though Lamport published Paxos paper, there was no widespread adoption. So he later published a “Paxos made simple” paper to make it more adaptable because people could not understand or use Paxos. This is why Raft is seen as an important alternative to Paxos. People were using Raft within weeks of this paper being published.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;strength-and-weaknesses&quot;&gt;Strength and Weaknesses&lt;&#x2F;h2&gt;
+&lt;p&gt;This paper highlighted the understandability of a consensus algorithm and the paper was written with seemingly similar goals in mind. This paper was by far the easiest to read of any we have looked at so far in class so that is a strength that not many technical papers have. The downside of this is that they seemed to have lost some technical detail that would have strengthened their claims of superiority. There was no test done to actually compare the functionality of Paxos to Raft and yet they claim that the performance is similar. This seems slightly suspicious especially after the authors self-reported that they couldn’t really use Paxos. I also would like to see a larger sample size than 43 since this is a small sample size to get statistically significant data from. A weakness of Raft itself is that using one server as a leader could create a bottleneck within high-traffic systems.&lt;&#x2F;p&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>End to End Sequential Consistency</title>
+                <pubDate>Wed, 29 Jan 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/end-to-end-sc/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/end-to-end-sc/</guid>
+                <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h2&gt;
+&lt;p&gt;This blog post covers End-to-End Sequential Consistency, a research paper published on June 13, 2012, and presented in our group on January 29, 2025. The paper tackles the challenge of making Sequential Consistency (SC) efficient enough for real-world use. While SC ensures a clear, intuitive execution order for multi-threaded programs, its strict memory ordering usually comes with a steep performance hit. To address this, the authors propose a low-overhead SC implementation that combines compiler optimizations and lightweight hardware modifications. Their approach classifies memory accesses as “safe” (private or read-only) or “unsafe” (shared and writable), allowing most operations to bypass SC constraints. Benchmarks show that this hybrid approach incurs only a 6.2% overhead compared to TSO hardware, which suggest that end-to-end SC might be more practical than previously thought.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;background-and-context&quot;&gt;Background and Context&lt;&#x2F;h2&gt;
+&lt;p&gt;Modern multiprocessors use weak memory consistency models like Total Store Order (TSO) and Relaxed Memory Order (RMO) to boost performance by reordering memory operations, which makes multi-threaded programming harder to reason about. Sequential Consistency (SC) offers a much simpler model by ensuring all memory operations appear in a globally ordered sequence, but enforcing this model dampens performance. Compilers and processors further complicate things by reordering instructions to optimize execution, meaning SC isn’t naturally preserved. To ensure correctness, programmers typically rely on locks, memory fences, and atomic operations, which add complexity and slow things down.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;keywords&quot;&gt;Keywords&lt;&#x2F;h2&gt;
+&lt;h4 id=&quot;memory-consistency-model&quot;&gt;Memory Consistency Model&lt;&#x2F;h4&gt;
+&lt;p&gt;Defines how memory operations (reads&#x2F;writes) appear across threads in a multiprocessor system, impacting parallel program behavior and performance.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;sequential-consistency-sc&quot;&gt;Sequential Consistency (SC)&lt;&#x2F;h4&gt;
+&lt;p&gt;A strict memory model where operations execute in program order and all threads see a single global order. Improves predictability but hurts performance.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;total-store-order-tso&quot;&gt;Total Store Order (TSO)&lt;&#x2F;h4&gt;
+&lt;p&gt;A weaker model  that allows loads to execute before earlier stores complete, improving speed while maintaining store ordering for consistency.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;relaxed-memory-order-rmo&quot;&gt;Relaxed Memory Order (RMO)&lt;&#x2F;h4&gt;
+&lt;p&gt;A high-performance model that allows both loads and stores to be reordered, requiring explicit synchronization to maintain correctness.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;thread-local-memory&quot;&gt;Thread-Local Memory&lt;&#x2F;h4&gt;
+&lt;p&gt;Memory only accessed by a single thread, avoiding synchronization overhead and allowing SC optimizations by skipping ordering constraints.&lt;&#x2F;p&gt;
+&lt;p&gt;Shared Read-Only Memory&lt;br &#x2F;&gt;
+Data readable but not writable by multiple threads. Since it never changes, it doesn’t require strict ordering, allowing SC optimizations.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;store-buffer&quot;&gt;Store Buffer&lt;&#x2F;h4&gt;
+&lt;p&gt;A hardware queue that holds pending stores before committing to memory. Improves performance but can break SC if loads execute before previous stores complete.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;fifo-store-buffer&quot;&gt;FIFO Store Buffer&lt;&#x2F;h4&gt;
+&lt;p&gt;A First-In-First-Out buffer that preserves store order for shared memory, enforcing SC only where necessary.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;out-of-order-execution-oooe&quot;&gt;Out-of-Order Execution (OoOE)&lt;&#x2F;h4&gt;
+&lt;p&gt;A CPU optimization that executes instructions as soon as dependencies are ready, improving performance but requiring memory ordering mechanisms to enforce SC.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;static-analysis&quot;&gt;Static Analysis&lt;&#x2F;h4&gt;
+&lt;p&gt;A compile-time optimization where LLVM detects thread-local and read-only accesses, marking them as safe for SC efficiency.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;dynamic-analysis&quot;&gt;Dynamic Analysis&lt;&#x2F;h4&gt;
+&lt;p&gt;A runtime optimization where the OS tracks memory sharing and updates classifications, preventing unnecessary SC enforcement.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;llvm-compiler-framework&quot;&gt;LLVM Compiler Framework&lt;&#x2F;h4&gt;
+&lt;p&gt;An open-source compiler infrastructure modified to classify memory accesses and ensure SC is preserved without unnecessary performance loss.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;summary-of-the-paper&quot;&gt;Summary of the Paper&lt;&#x2F;h2&gt;
+&lt;h2 id=&quot;1-introduction&quot;&gt;1. Introduction&lt;&#x2F;h2&gt;
+&lt;p&gt;Memory consistency models define how multi-threaded programs interact with memory, balancing programmer simplicity with system performance. Sequential Consistency (SC) is one of the strongest models, enforcing a global order of memory operations, but its strict constraints limit compiler and hardware optimizations, making it costly to implement efficiently.&lt;&#x2F;p&gt;
+&lt;p&gt;This paper proposes a practical SC hardware design that avoids speculation by recognizing that most memory accesses are private or shared read-only, meaning SC constraints aren’t always necessary. By classifying memory accesses at compile time and runtime, SC enforcement is applied only when needed. The design splits the store buffer into a FIFO buffer for shared writes and an unordered buffer for private writes, reducing stalls and improving efficiency. Results show only a 6.2% overhead compared to TSO, making SC enforcement viable for modern processors.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;2-background&quot;&gt;2. Background&lt;&#x2F;h2&gt;
+&lt;p&gt;Most programming languages only guarantee SC for data-race-free programs, but many real-world programs contain data races, intentional or not. Modern compilers violate SC through optimizations like instruction reordering, which is why languages use weak memory models. However, research shows that an SC-preserving LLVM compiler can retain most optimizations while keeping overhead low (~3.8%). Running these SC-safe binaries on SC hardware would provide end-to-end SC enforcement.&lt;&#x2F;p&gt;
+&lt;p&gt;Designing efficient SC hardware remains a challenge because naive SC forces strict ordering, severely limiting performance. Existing approaches rely on complex speculation and rollback mechanisms, which are costly and difficult to implement.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;3-relaxing-memory-model-constraints-for-safe-accesses&quot;&gt;3. Relaxing Memory Model Constraints for Safe Accesses&lt;&#x2F;h2&gt;
+&lt;p&gt;Many memory operations, such as thread-local or shared read-only accesses, do not require strict ordering since they cannot be observed or altered by other threads. If the compiler or runtime system can guarantee an access is safe, the processor can freely reorder it, improving performance without violating SC.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;4-design-memory-access-type-driven-sc-hardware&quot;&gt;4. Design: Memory Access Type Driven SC Hardware&lt;&#x2F;h2&gt;
+&lt;p&gt;The proposed SC hardware optimizes memory ordering by classifying accesses as safe or unsafe. This classification is determined through a hybrid approach: static compiler analysis, which flags function-local and read-only accesses, and dynamic runtime analysis, which tracks page-level access patterns via the OS and MMU. If either method deems an access safe, SC constraints are relaxed, minimizing performance overhead.&lt;&#x2F;p&gt;
+&lt;p&gt;To further improve efficiency, the store buffer is split into two parts: a FIFO buffer for unsafe stores (preserving order) and an unordered buffer for safe stores (allowing faster execution). This setup lets safe loads commit without waiting for stores.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;5-static-classification-of-memory-accesses&quot;&gt;5. Static Classification of Memory Accesses&lt;&#x2F;h2&gt;
+&lt;p&gt;The compiler classifies memory accesses as safe (private or read-only shared) or unsafe (shared writeable) and marks them accordingly in machine code. Safe accesses can be reordered, while unsafe ones must follow SC constraints. Function-local, non-escaping variables and literals are classified as safe, while global, heap-allocated, and escaped variables are unsafe. To maintain correctness, any instruction that accesses both safe and unsafe variables is marked as unsafe. This static analysis is conservative but avoids the runtime costs of page-level tracking.&lt;&#x2F;p&gt;
+&lt;p&gt;To ensure correct store-to-load forwarding, loads and stores to the same address must have the same classification. The processor performs an extra check before committing a store to avoid conflicts when different functions reuse stack locations. This ensures safe and unsafe stores do not execute out of order. Union variables are always marked unsafe, as aliasing complicates classification. In CISC architectures, memory instructions can access multiple variables, so the ISA is extended to store separate safety bits for each memory operand, ensuring proper classification at the micro-operation level.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;6-dynamic-classification-of-memory-accesses&quot;&gt;6. Dynamic Classification of Memory Accesses&lt;&#x2F;h2&gt;
+&lt;p&gt;Since static classification is conservative, a dynamic approach leverages the Memory Management Unit (MMU) and OS page protection to track memory access patterns at runtime. Pages are classified as private, shared read-only, or shared read-write, with only the last requiring strict SC enforcement. The Translation Lookaside Buffer (TLB) is extended with a safe bit to quickly determine if an access is safe. If either static or dynamic classification marks an access as safe, SC constraints are relaxed, reducing performance overhead.&lt;&#x2F;p&gt;
+&lt;p&gt;Page states transition dynamically based on access patterns. A new page starts as “untouched”, and the first access sets it as private. If another thread reads it, it becomes shared read-only, and if written to by multiple threads, it transitions to shared read-write, requiring strict SC. Inter-processor interrupts (IPIs) ensure memory ordering during transitions, invalidating TLB entries and flushing store buffers. TLB entries are reset on context switches to maintain correctness, and Direct Memory Access (DMA) interactions are managed by either enforcing exclusive access or temporarily marking affected pages as unsafe.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;7-results&quot;&gt;7. Results&lt;&#x2F;h2&gt;
+&lt;p&gt;The proposed SC-hybrid hardware reduces the overhead of enforcing Sequential Consistency (SC) to just 2.0% on average, a significant improvement over the 9.1% overhead of baseline SC. Worst-case overhead is 5.4% (facesim) compared to 28.8% in the baseline SC design. The hybrid classification approach, which combines static compiler analysis and dynamic page-based classification, achieves 71.5% accuracy, close to the 81.5% of an ideal byte-level scheme. End-to-end SC enforcement, including both compiler and hardware constraints, incurs a 6.2% overhead compared to a traditional TSO processor running a stock compiler, far lower than the 12.7% cost of naive SC. Store buffer optimizations ensure minimal additional hardware cost, with only a 1% increase in overhead when buffer sizes are reduced.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;important-results&quot;&gt;Important Results&lt;&#x2F;h4&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;This paper demonstrates that Sequential Consistency (SC) can be enforced efficiently by selectively applying memory constraints only where necessary, reducing overhead without complex speculation.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Instead of enforcing strict SC for all memory accesses, the approach classifies them as safe (thread-local or shared read-only) or unsafe (shared writeable) by using a hybrid classification method, avoiding unnecessary stalls for 81% of accesses.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Results show that the SC-hybrid design incurs just 2.0% overhead over TSO, while full end-to-end SC (compiler + hardware) adds only 6.2%, far lower than naive SC’s 12.7% penalty. Benchmarks confirm near-TSO performance, with worst-case overhead at 5.4% (facesim) vs. 28.8% in naive SC.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;strengths-and-weaknesses&quot;&gt;Strengths and Weaknesses&lt;&#x2F;h2&gt;
+&lt;h4 id=&quot;strengths&quot;&gt;Strengths&lt;&#x2F;h4&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Efficient SC Enforcement with Minimal Overhead&lt;br &#x2F;&gt;
+Achieves end-to-end SC with just 6.2% overhead, significantly lower than traditional SC implementations (~12.7%). Avoids speculative execution, making it simpler and more power-efficient than past SC approaches.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Dual-Buffer Store Architecture&lt;br &#x2F;&gt;
+Introduces a FIFO + Unordered Store Buffer system, reducing stalls and improving efficiency.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Hybrid Memory Classification (Compiler + Runtime)&lt;br &#x2F;&gt;
+Combines static compiler analysis (LLVM-based) with dynamic runtime tracking (MMU &amp;amp; page tables) to accurately classify memory accesses with minimal overhead.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h4 id=&quot;weaknesses&quot;&gt;Weaknesses&lt;&#x2F;h4&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Limited Applicability Beyond x86&lt;br &#x2F;&gt;
+Designed for TSO-based architectures (like x86), which already enforce relatively strong memory consistency. Adoption in weaker memory models like ARM is uncertain, as they rely more on relaxed consistency.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Reliance on OS Support for Runtime Classification&lt;br &#x2F;&gt;
+Requires OS modifications for tracking memory access types, which may limit adoption on existing systems.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Evaluation Based on Simulation, Not Real Hardware&lt;br &#x2F;&gt;
+All results are from a Simics-based simulator, not real hardware. Without FPGA or ASIC testing, real-world feasibility remains uncertain.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h2 id=&quot;class-discussion&quot;&gt;Class Discussion:&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;1-what-are-some-architectures-that-prioritize-performance-over-programming-ease-of-use&quot;&gt;1.  What are some architectures that prioritize performance over programming ease of use?&lt;&#x2F;h3&gt;
+&lt;p&gt;Some architectures sacrifice ease of programming for raw performance, making them powerful but difficult to work with.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;IBM’s Cell processor (used in the PS3) had manual workload distribution and memory management, making it fast but developer-unfriendly.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Intel’s Itanium relied on compiler-managed parallelism (EPIC), which hurt adoption due to compiler complexity.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Intel Xeon Phi – Optimized for massively parallel workloads, but required special programming models.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;VLIW Processors – Found in early GPUs&#x2F;DSPs, demanded precise instruction scheduling.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;RISC-V Vector Extensions – Powerful but requires manual low-level management.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;2-balance-between-sequential-consistency-and-understandability-of-architecture-code&quot;&gt;2.  Balance between sequential consistency and understandability of architecture&#x2F;code?&lt;&#x2F;h3&gt;
+&lt;p&gt;There’s a trade-off between sequential consistency (SC) and system understandability. SC makes multi-threaded code easier to reason about, but it restricts optimizations, slowing down execution. On the other hand, weaker memory models allow better performance but make debugging concurrency issues much harder.&lt;&#x2F;p&gt;
+&lt;p&gt;In reality, only a small percentage of code actually requires strong consistency—most programs don’t frequently share stores between processors. For these cases, weaker memory models (like TSO or RC) are a better fit, as they allow higher performance without unnecessary synchronization overhead.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;3-multiprocessors-work-in-lockstep-how-do-they-synchronize-instructions-faulty-instructions&quot;&gt;3.  Multiprocessors work in lockstep? How do they synchronize instructions&#x2F;faulty instructions?&lt;&#x2F;h3&gt;
+&lt;p&gt;Multiprocessors do not operate in lockstep—each core runs independently, and there are no guarantees that instructions will execute at the same time across all cores. Some cores may run at different speeds due to frequency scaling, thermal constraints, or workload differences, but this doesn’t matter for applications that don’t share data.For high-performance computing (HPC) workloads, where synchronization is critical, frequency scaling is often disabled, ensuring all cores run at a fixed speed to avoid performance variation and keep parallel computations aligned.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;4-shared-page-can-be-unsafe&quot;&gt;4.  Shared page can be unsafe?&lt;&#x2F;h3&gt;
+&lt;p&gt;A shared memory page can be unsafe because it might contain both safe (thread-local or read-only) and unsafe (shared writeable) accesses. This makes it difficult to blindly treat an entire page as safe, as a single writeable access can break consistency guarantees. To handle this, a Finite State Machine (FSM) can track and dynamically classify memory accesses at the page level. The FSM can adjust permissions and enforcement rules based on how a page is being accessed.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;5-what-platform-did-they-use-to-run-these-benchmarks&quot;&gt;5.  What platform did they use to run these benchmarks?&lt;&#x2F;h3&gt;
+&lt;p&gt;The benchmarks were run on a simulated platform, not real hardware. The authors used a Simex processor simulator, which started with an x86 core and was modified to support their SC-aware optimizations. They also implemented a modified LLVM compiler to classify memory accesses as safe or unsafe, integrating their approach into the software stack. The evaluation included Apache server benchmarks alongside PARSEC and SPLASH-2, representing real-world multi-threaded workloads.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;6-instructions-xyz-in-diff-threads-can-map-to-the-same-physical-location-what-does-it-mean-when-can-it-happen&quot;&gt;6.  Instructions xyz (in diff threads) can map to the same physical location - what does it mean, when can it happen?&lt;&#x2F;h3&gt;
+&lt;p&gt;In multi-threaded programs, different threads can have instructions that access the same physical memory location, even if they use different virtual addresses. This can lead to unexpected memory interactions and potential safety issues.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;7-has-this-been-implemented-anywhere-in-actual-hardware&quot;&gt;7.  Has this been implemented anywhere (in actual hardware)?&lt;&#x2F;h3&gt;
+&lt;p&gt;This approach has not been implemented in actual hardware. The paper was published in 2012, and there are no known commercial processors that have adopted this exact SC enforcement method. One major reason is that industry is slow to adopt changes that fundamentally alter core architecture. Implementing end-to-end SC enforcement requires modifications to hardware, compilers, operating systems, and programming models, making it a massive undertaking with uncertain incentives. Given that weak memory models already work well for performance, most companies don’t see a strong reason to switch.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;8-implementation-in-risc-v-and-arm&quot;&gt;8.  Implementation in RISC-V and ARM?&lt;&#x2F;h3&gt;
+&lt;p&gt;This approach could be interesting for RISC-V, as it supports multiple consistency models, allowing flexibility in experimenting with SC enforcement. However, ARM relies on weak consistency for performance and efficiency, making it unlikely to adopt a strict SC model, especially since its OS ecosystem is already optimized for relaxed consistency models.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;9-challenges-with-page-table-approach&quot;&gt;9.  Challenges with Page Table Approach?&lt;&#x2F;h3&gt;
+&lt;p&gt;One issue with enforcing SC at the page level is that each page (typically 4KB) may contain both safe and unsafe data. If one part of the page needs strict SC while another doesn’t, the system would have to either enforce SC on the whole page (wasting performance) or split memory in a way that increases complexity. In many cases, the amount of mixed safe&#x2F;unsafe data in a page might not justify the overhead of tracking and enforcing SC at that granularity.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;10-better-implementation-would-have-done-analysis-on-the-page-table&quot;&gt;10.  Better implementation - would have done analysis on the page table?&lt;&#x2F;h3&gt;
+&lt;p&gt;A more refined approach would involve deeper analysis at the page table level, ensuring that only truly shared read-write memory gets SC enforcement. Instead of enforcing SC on entire pages, the system could track memory regions at a finer granularity, reducing unnecessary constraints. A more efficient solution would involve adaptive tracking, ensuring that SC is only applied where actual shared modifications occur, rather than blindly enforcing it at the entire page level. This would help balance performance and correctness while minimizing unintended synchronization overhead.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;11-what-about-the-language-mem-addr-can-escape-thread-and-be-used-in-a-diff-thread-are-there-languages-that-prevent-this&quot;&gt;11.  What about the language? Mem addr can escape thread and be used in a diff thread; are there languages that prevent this?&lt;&#x2F;h3&gt;
+&lt;p&gt;Certain programming languages prevent unsafe memory escapes between threads, making sequential consistency (SC) enforcement easier. Rust, for example, enforces strict ownership and borrowing rules, ensuring that a memory address cannot be accessed by multiple threads unless explicitly marked as safe. This paper was likely ahead of its time since escape analysis was still an evolving concept when this paper was written. Detecting whether a memory address escapes a thread is extremely difficult and requires deep compiler analysis, which is impossible to get 100% correct in many cases.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;12-what-was-this-done-in&quot;&gt;12.  What was this done in?&lt;&#x2F;h3&gt;
+&lt;p&gt;The implementation was primarily written in C++ using a modified LLVM compiler to classify memory accesses as safe or unsafe. Since LLVM is widely used for compiler research, this choice allowed fine-grained control over instruction ordering and optimization passes.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;13-memory-models-how-a-programmer-works-with-it-is-important&quot;&gt;13.  Memory models - how a programmer works with it is important?&lt;&#x2F;h3&gt;
+&lt;p&gt;Memory models define how programmers interact with memory in multi-threaded programs, and Sequential Consistency (SC) is particularly frustrating because it restricts compiler and hardware optimizations. At the compiler level, memory ordering isn’t fixed because optimizations like instruction reordering can change consistency guarantees. If the compiler doesn’t explicitly enforce SC, it can freely reorder operations unless memory barriers or synchronization primitives are used. This leads to issues with undefined behavior, where the compiler assumes it can optimize memory accesses however it wants unless explicitly told otherwise.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;14-what-are-the-benefits-of-sc&quot;&gt;14.  What are the benefits of SC?&lt;&#x2F;h3&gt;
+&lt;p&gt;The main advantage of SC is that it makes multi-threaded programming easier to understand. Since memory operations appear in a global, ordered sequence, programmers don’t have to worry about unexpected reordering by the compiler or hardware, making debugging and reasoning about concurrency much simpler.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;15-analyzing-the-graphs-and-performance-trends&quot;&gt;15.  Analyzing the Graphs and Performance Trends&lt;&#x2F;h3&gt;
+&lt;p&gt;Shared vs. Unshared Data Performance&lt;&#x2F;p&gt;
+&lt;p&gt;If the paper’s claims hold, workloads with more shared data should perform better under the proposed SC model compared to naive SC. The results should show a clear gap between naive SC (SC-baseline) and the optimized SC-hybrid approach, especially for programs that frequently share memory between threads.&lt;&#x2F;p&gt;
+&lt;p&gt;Which Workload Should Perform Best?&lt;&#x2F;p&gt;
+&lt;p&gt;From the benchmarks, Barnes has the most shared data, so it should see the biggest performance improvement. However, in Streamcluster, the SC-Ideal case performs better than SC-Hybrid, raising questions about whether SC-Hybrid is fully optimizing memory accesses as expected.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;interpreting-sc-ideal&quot;&gt;Interpreting SC-Ideal&lt;&#x2F;h2&gt;
+&lt;p&gt;The SC-Ideal case likely represents a perfect scenario where SC enforcement incurs zero penalties, serving as a best-case theoretical performance bound. The inclusion of “(byte)” in SC-Ideal’s title is unclear—possibly indicating a byte-granularity analysis, but the paper should clarify its significance.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;visualization-issues&quot;&gt;Visualization Issues&lt;&#x2F;h2&gt;
+&lt;p&gt;One clear flaw in the presentation is poor graph design—everything is in grayscale, making it harder to distinguish between datasets. Modern conference guidelines recommend using color and patterns to improve readability, so the authors should refine their visualization for better clarity.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;reevaluating-multiprocessing-through-the-sc-lens&quot;&gt;Reevaluating Multiprocessing Through the SC Lens&lt;&#x2F;h2&gt;
+&lt;p&gt;SC assumes that shared memory is the common case, enforcing strict ordering to maintain consistency. However, real-world workloads often show the opposite—the majority of memory accesses are thread-local or read-only, with relatively few requiring strict read&#x2F;write (R&#x2F;W) synchronization. This suggests that optimizing for global SC might not be the best approach for modern multiprocessors.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;does-an-instagram-like-system-need-sc&quot;&gt;Does an Instagram-Like System Need SC?&lt;&#x2F;h2&gt;
+&lt;p&gt;Implementing Instagram (or any large-scale social media platform) on a multi-core processor raises the question: is Sequential Consistency (SC) necessary? The answer depends on which parts of the system require strict memory ordering.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;For basic content delivery (loading posts, images, likes), SC is unnecessary because these operations don’t require strict synchronization—eventual consistency is fine.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;For counters (like counts, view counts), SC isn’t required either since approximate values are acceptable, and techniques like relaxed consistency with periodic synchronization work well.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;For critical sections like comments and replies, SC becomes more important. If two users reply to a comment at the same time, ensuring correct order matters, or discussions could become garbled.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;finding-the-right-balance-sc-vs-scalability&quot;&gt;Finding the Right Balance: SC vs. Scalability&lt;&#x2F;h2&gt;
+&lt;p&gt;A single point of consistency in the system (such as a single-threaded bottleneck) is a bad idea because it creates a failure-prone and slow system. Instead, modern architectures rely on distributed databases and eventual consistency, selectively enforcing strong consistency where it truly matters (transactional updates, authentication). For programmers, this is a trade-off between consistency and scalability—strict SC ensures correctness but hurts performance, while weaker models improve capacity at the cost of occasional inconsistencies.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;are-they-being-selective-with-their-benchmarks&quot;&gt;Are They Being Selective With Their Benchmarks?&lt;&#x2F;h2&gt;
+&lt;p&gt;It’s fair to question whether the benchmarks used in the paper accurately represent real-world workloads. The authors focus on PARSEC, SPLASH-2, and Apache benchmarks, which are widely used in academic research, but they don’t explicitly show how much data sharing actually occurs in these workloads. A moderation graph showing the percentage of shared vs. unshared data accesses would help clarify whether SC optimizations are truly impactful in common cases.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;are-these-workloads-reflective-of-modern-applications&quot;&gt;Are These Workloads Reflective of Modern Applications?&lt;&#x2F;h2&gt;
+&lt;p&gt;While these benchmarks were relevant at the time, they don’t necessarily represent today’s software landscape. One glaring omission is AI&#x2F;ML workloads, which heavily rely on parallelism and could benefit from or break under strict SC enforcement. Given that this paper was published before the AI&#x2F;ML boom, it’s understandable that such benchmarks weren’t included, but it still highlights a broader issue with academic evaluations—they often miss fast-moving trends in real-world computing.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;benchmark-selection-matters-in-paper-acceptance&quot;&gt;Benchmark Selection Matters in Paper Acceptance&lt;&#x2F;h2&gt;
+&lt;p&gt;A key issue with research papers is how benchmarks influence acceptance. If reviewers believe the authors chose benchmarks that favor their results, they might reject the paper for not testing “software that actually matters.” Adding more diverse workloads, especially those involving data-heavy and modern parallel computing applications, would make the findings more generalizable and harder to dismiss.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources:&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;End-to-end sequential consistency: http:&#x2F;&#x2F;web.cs.ucla.edu&#x2F;~todd&#x2F;research&#x2F;isca12.pdf&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;OSTEP Textbook Remzi Arpaci-Dusseau&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Computer Organization and Design RISC-V Edition The Hardware Software Interface 2nd Edition - December 11, 2020 Authors: David A. Patterson, John L. Hennessy&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Computer Architecture, Sixth Edition: A Quantitative Approach December 2017 Authors: John L. Hennessy, David A. Patterson&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;generative-ai&quot;&gt;Generative AI&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Link to specific Tools: &lt;a href=&quot;https:&#x2F;&#x2F;chatgpt.com&#x2F;&quot;&gt;https:&#x2F;&#x2F;chatgpt.com&#x2F;&lt;&#x2F;a&gt; &lt;a href=&quot;https:&#x2F;&#x2F;www.deepseek.com&#x2F;&quot;&gt;https:&#x2F;&#x2F;www.deepseek.com&#x2F;&lt;&#x2F;a&gt;  &lt;a href=&quot;https:&#x2F;&#x2F;claude.ai&quot;&gt;https:&#x2F;&#x2F;claude.ai&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;This tool was used to help generate ideas for the outline, provide explanations of keywords, and offer feedback on prose.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Claude appears to have a tiny context window that is unusable for long conversations. However, it apparently has a much larger context window than chatgpt which means that chatgpt has been truncating content without informing users. (&lt;a href=&quot;https:&#x2F;&#x2F;prompt.16x.engineer&#x2F;blog&#x2F;claude-sonnet-gpt4-context-window-token-limit&quot;&gt;https:&#x2F;&#x2F;prompt.16x.engineer&#x2F;blog&#x2F;claude-sonnet-gpt4-context-window-token-limit&lt;&#x2F;a&gt;)&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Deepseek is frequently down due to poor cloud service and is also biased&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;ChatGPT has by far the best value proposition because of its user interface.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Generative AI tools are excellent tools for brainstorming, offering feedback, and providing explanations. These tools should not be trusted for accuracy. Any specific detail mentioned must be externally validated.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Concrete example: changed “Has this been implemented anywhere (in actual hardware)&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Published in 2012, could not find anything about it&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Industry balks at research that fundamentally changes core architecture; might not be enough incentive to update architecture&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Another guess: touches every part of the stack: special compiler, hardware, language, etc.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Takes a long time to adopt; either all or nothing with adoption&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;“ to “This approach has not been implemented in actual hardware. The paper was published in 2012, and there are no known commercial processors that have adopted this exact SC enforcement method. One major reason is that industry is slow to adopt changes that fundamentally alter core architecture. Implementing end-to-end SC enforcement requires modifications to hardware, compilers, operating systems, and programming models, making it a massive undertaking with uncertain incentives. Given that weak memory models already work well for performance, most companies don’t see a strong reason to switch.”&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Information given could be misleading. For example, the LLM claimed and the strength of the paper was “Strong Experimental Validation - Uses widely recognized benchmarks to demonstrate real-world applicability.” However, in the discussion, it was pointed out that the authors seemed to cherry pick their benchmarks.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>The Multikernel: Ambitious OS Architecture Ahead of Its Time</title>
+                <pubDate>Mon, 27 Jan 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/barrelfish/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/barrelfish/</guid>
+                <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h2&gt;
+&lt;p&gt;This paper describes a different paradigm for constructing an OS relying on message-passing instead of shared memory for organizing OS data structures across multiple cores.  Mainstream operating system kernels predominantly make use of shared memory data structures - global information used for the core OS, device drivers or major subsystems that use some form of mutual exclusion to protect access.  This paper presents an alternative approach: data structures are not shared but instead cross-core message-based communication was used instead.&lt;&#x2F;p&gt;
+&lt;p&gt;The paper makes a case for the diversity of hardware architectures making it increasingly difficult for an OS to adapt to these differences.  Some of these claims have not aged particularly well from 2009 as seen from today as great improvements have been made in describing to OSes hardware differences so it can adapt - but the core concepts in the paper are still relevant today.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-shared-memory-scaling-problem&quot;&gt;The Shared Memory Scaling Problem&lt;&#x2F;h2&gt;
+&lt;p&gt;The architecture of the rack&#x2F;board&#x2F;socket&#x2F;die&#x2F;core hierarchy and the corresponding interconnect+cache topology can have a profound impact on the performance of the OS and applications.  The shared kernel data structure approach is exposed to these performance effects as we see from the shared memory RPC benchmarks which show latency increasing as number of cores increase but also as the size of the messages increase (from 1-8 cachelines):&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;barrelfish&#x2F;rpc_shm.PNG&quot; alt=&quot;RPC Shared Memory Results&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;message-passing-to-the-rescue&quot;&gt;Message-Passing to the Rescue?&lt;&#x2F;h2&gt;
+&lt;p&gt;The solution used in the Multikernel paper and implemented in the Barrelfish OS passes messages instead, so rather than the kernel data structures being inherently shared, instead messages are sent to request that one responsible entity carry out the requested action:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;barrelfish&#x2F;message_passing.PNG&quot; alt=&quot;Message Passing Diagram&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;and an interesting result occurs, showing improved scaling for core count and message sizes versus shared memory:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;barrelfish&#x2F;rpc_message_shm.PNG&quot; alt=&quot;RPC Messaging-Passing and Shared Memory Results&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The graph above is from a 4-socket AMD server platform circa 2009.  These X86 systems have cache coherency protocols active but the effects are only observed in the RPC implementation itself as the Barrelfish OS does not share other data.&lt;&#x2F;p&gt;
+&lt;p&gt;The authors present a comparison of a TLB shootdown (Unmap) flow across Windows, Linux and Barrelfish, the first two using shared memory kernel data structures:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;barrelfish&#x2F;unmap_latency.PNG&quot; alt=&quot;Unmap Latencies Across OSes&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;rpc-shared-memory-optimization&quot;&gt;RPC Shared Memory Optimization&lt;&#x2F;h2&gt;
+&lt;p&gt;Interestingly, even though the paper set out to define a “no shared data” OS architecture to enable it to be immune to hardware interconnect and cache coherency implementation differences, the practical effects of the RPC system on the X86 server hardware showed that RPC performance was directly impacted by the hardware implementation.  Specifically, the shared data (RPC message buffer) data flows from the sender to the receiver had a performance impact requiring the RPC layer to be adapted:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;barrelfish&#x2F;multicast.PNG&quot; alt=&quot;Multicast RPC Diagram&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;We see that this optimization has a profound impact as the number of cores increases:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;barrelfish&#x2F;rpc_optimization.PNG&quot; alt=&quot;RPC Optimziation Results&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Which perhaps goes to show that as long as any shared memory is involved that NUMA is ready to bite you.&lt;&#x2F;p&gt;
+&lt;p&gt;Given that the experimental setup still used shared memory for RPC itself and we know the hardware implementation has a measurable impact on performance, it would be interesting to consider using modern (2025) hardware to repeat some of these experiments including RPC mechanisms that did not rely on shared memory at all.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;final-thoughts&quot;&gt;Final Thoughts&lt;&#x2F;h2&gt;
+&lt;p&gt;Think about the kind of experiments we could set up today to explore the tradeoffs between shared memory and message-passing approaches.  What effects would we see running across more diverse topologies including multiple dies in a package ranging to multiple servers across racks?  Could adjusting interconnect and cache coherency policies fundamentally change the performance characteristics of operating system data sharing?  Is there some hardware assist that would be optimal for OS message passing?  Would an adaptive algorithm that chooses the best of both shared memory and message passing be feasible?&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;https:&#x2F;&#x2F;www.sigops.org&#x2F;s&#x2F;conferences&#x2F;sosp&#x2F;2009&#x2F;papers&#x2F;baumann-sosp09.pdf&lt;&#x2F;li&gt;
+&lt;li&gt;https:&#x2F;&#x2F;www.sigops.org&#x2F;s&#x2F;conferences&#x2F;sosp&#x2F;2009&#x2F;slides&#x2F;baumann-slides-sosp09.pdf&lt;&#x2F;li&gt;
+&lt;li&gt;https:&#x2F;&#x2F;www.youtube.com&#x2F;watch?v=fZt1LILFyXY&lt;&#x2F;li&gt;
+&lt;li&gt;https:&#x2F;&#x2F;barrelfish.org&#x2F;&lt;&#x2F;li&gt;
+&lt;li&gt;https:&#x2F;&#x2F;github.com&#x2F;BarrelfishOS&#x2F;barrelfish&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>FMI: Fast and Cheap Message Passing for Serverless Functions</title>
+                <pubDate>Wed, 22 Jan 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/fmi/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/fmi/</guid>
+                <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h2&gt;
+&lt;p&gt;This blog post covers &lt;strong&gt;FMI: Fast and Cheap Message Passing for Serverless Functions&lt;&#x2F;strong&gt;, a research paper submitted on &lt;strong&gt;May 15, 2023&lt;&#x2F;strong&gt;, and presented on &lt;strong&gt;January 22, 2025&lt;&#x2F;strong&gt;. The paper introduces the &lt;strong&gt;FaaS Message Interface (FMI)&lt;&#x2F;strong&gt;, a high-performance communication framework for &lt;strong&gt;serverless computing&lt;&#x2F;strong&gt;. Traditional serverless architectures rely on &lt;strong&gt;storage-based communication&lt;&#x2F;strong&gt; (&lt;strong&gt;AWS S3, Redis, DynamoDB&lt;&#x2F;strong&gt;), introducing significant &lt;strong&gt;latency and cost overhead&lt;&#x2F;strong&gt;. FMI overcomes these challenges using &lt;strong&gt;direct TCP communication&lt;&#x2F;strong&gt; enabled through &lt;strong&gt;TCP NAT hole punching (TCPunch)&lt;&#x2F;strong&gt;, reducing &lt;strong&gt;latency, cost, and complexity&lt;&#x2F;strong&gt;.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;h2 id=&quot;background-and-context&quot;&gt;Background and Context&lt;&#x2F;h2&gt;
+&lt;p&gt;Function-as-a-Service (&lt;strong&gt;FaaS&lt;&#x2F;strong&gt;) is a widely used &lt;strong&gt;serverless&lt;&#x2F;strong&gt; cloud computing model, offering &lt;strong&gt;elastic scaling&lt;&#x2F;strong&gt; and &lt;strong&gt;fine-grained billing&lt;&#x2F;strong&gt;, making it ideal for &lt;strong&gt;machine learning, data analytics, and distributed applications&lt;&#x2F;strong&gt;. However, serverless functions &lt;strong&gt;lack efficient, low-latency communication mechanisms&lt;&#x2F;strong&gt; and often depend on &lt;strong&gt;cloud storage-based solutions&lt;&#x2F;strong&gt; such as &lt;strong&gt;AWS S3, Redis, and DynamoDB&lt;&#x2F;strong&gt;. These solutions &lt;strong&gt;increase latency and cost&lt;&#x2F;strong&gt;, making &lt;strong&gt;frequent inter-function communication&lt;&#x2F;strong&gt; inefficient.&lt;&#x2F;p&gt;
+&lt;p&gt;Additionally, serverless functions operate &lt;strong&gt;behind Network Address Translation (NAT) gateways&lt;&#x2F;strong&gt;, preventing &lt;strong&gt;direct&lt;&#x2F;strong&gt; connections between functions. This introduces &lt;strong&gt;overhead and complexity&lt;&#x2F;strong&gt;, requiring functions to &lt;strong&gt;relay messages&lt;&#x2F;strong&gt; through cloud-based storage which further increases &lt;strong&gt;latency&lt;&#x2F;strong&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;To solve these issues, &lt;strong&gt;FMI&lt;&#x2F;strong&gt; introduces &lt;strong&gt;TCP NAT hole punching (TCPunch)&lt;&#x2F;strong&gt; to establish &lt;strong&gt;direct, low-latency&lt;&#x2F;strong&gt; connections between functions.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;h2 id=&quot;keywords&quot;&gt;KEYWORDS&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;High-Performance Computing (HPC)&lt;&#x2F;strong&gt; – Systems designed for maximum processing speed and efficiency, often used for computationally intensive tasks. Utilizes optimized communication protocols like &lt;strong&gt;Message Passing Interface (MPI)&lt;&#x2F;strong&gt;.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;I&#x2F;O (Input&#x2F;Output)&lt;&#x2F;strong&gt; – Data transfer mechanisms affecting performance in serverless platforms. High-latency I&#x2F;O limits performance and scalability.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Serverless&lt;&#x2F;strong&gt; – A cloud model where functions execute &lt;strong&gt;without server management&lt;&#x2F;strong&gt;. Cost-effective, scalable, and eliminates infrastructure maintenance.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Function-as-a-Service (FaaS)&lt;&#x2F;strong&gt; – A subset of serverless computing focused on &lt;strong&gt;stateless function execution&lt;&#x2F;strong&gt; with elastic scaling and fine-grained billing.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Remote Memory Access (RMA)&lt;&#x2F;strong&gt; – A mechanism allowing a process to &lt;strong&gt;directly access the memory&lt;&#x2F;strong&gt; of a remote process, reducing access latency.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Stateless Functions&lt;&#x2F;strong&gt; – Functions &lt;strong&gt;without memory of prior invocations&lt;&#x2F;strong&gt;, simplifying scaling and deployment.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Elastic Scaling&lt;&#x2F;strong&gt; – &lt;strong&gt;Dynamic resource allocation&lt;&#x2F;strong&gt; based on workload demand.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Communication Bottleneck&lt;&#x2F;strong&gt; – &lt;strong&gt;Slow and costly&lt;&#x2F;strong&gt; inter-function messaging in serverless platforms.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Cloud Storage&lt;&#x2F;strong&gt; – Persistent storage solutions (AWS S3, Redis, DynamoDB) with &lt;strong&gt;high latency&lt;&#x2F;strong&gt; and additional cost.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Transmission Control Protocol (TCP)&lt;&#x2F;strong&gt; – A &lt;strong&gt;reliable&lt;&#x2F;strong&gt; communication protocol. FMI leverages TCP for message passing.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Network Address Translation (NAT)&lt;&#x2F;strong&gt; – A process that maps private IP addresses to public IPs, enabling internet communication but restricting direct function-to-function networking.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;NAT Hole Punching&lt;&#x2F;strong&gt; – A technique to &lt;strong&gt;bypass NAT restrictions&lt;&#x2F;strong&gt; by using a relay server to share external ports, enabling direct connections.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;TCP NAT Hole Punching (TCPunch)&lt;&#x2F;strong&gt; – The paper’s novel technique for &lt;strong&gt;direct TCP communication&lt;&#x2F;strong&gt; in serverless environments.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Message Passing Interface (MPI)&lt;&#x2F;strong&gt; – A standardized API for &lt;strong&gt;parallel computing&lt;&#x2F;strong&gt; that FMI is inspired by.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;AWS Lambda&lt;&#x2F;strong&gt; – A widely used &lt;strong&gt;serverless computing platform&lt;&#x2F;strong&gt;.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Redis&lt;&#x2F;strong&gt; – An in-memory data store and fast message broker. Suitable for low-latency but requires user-managed scalability.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;DynamoDB&lt;&#x2F;strong&gt; – A fully managed NoSQL database optimized for low-latency data retrieval.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;AWS S3&lt;&#x2F;strong&gt; – Scalable object storage with &lt;strong&gt;high durability&lt;&#x2F;strong&gt; and availability. Has higher latency and cost for frequent communication.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;hr &#x2F;&gt;
+&lt;h2 id=&quot;detailed-summary-of-the-paper&quot;&gt;Detailed Summary of the Paper&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;summary-of-1-introduction&quot;&gt;Summary of 1. Introduction&lt;&#x2F;h3&gt;
+&lt;p&gt;The paper introduces the &lt;strong&gt;FaaS Message Interface (FMI)&lt;&#x2F;strong&gt;, a modular and high-performance communication framework designed to address the inefficiencies of serverless communication. Inspired by the Message Passing Interface (MPI), FMI brings standardized abstractions for point-to-point and collective communication to Function-as-a-Service (FaaS) platforms.&lt;&#x2F;p&gt;
+&lt;p&gt;Key contributions include:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A library for message passing that provides common, standardized abstractions for serverless point-to-point and group communication.&lt;&#x2F;li&gt;
+&lt;li&gt;Analytical models for communication channels in FaaS and a discussion of the performance-price trade-offs of serverless communication.&lt;&#x2F;li&gt;
+&lt;li&gt;A demonstration of the application of FMI to serverless machine learning, showing reduced communication overhead by up to &lt;strong&gt;162x&lt;&#x2F;strong&gt; and cost savings up to &lt;strong&gt;397x&lt;&#x2F;strong&gt; compared to existing solutions.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;summary-of-2-design-of-fmi&quot;&gt;Summary of 2. Design of FMI&lt;&#x2F;h3&gt;
+&lt;p&gt;FMI’s design includes multiple &lt;strong&gt;communication channels&lt;&#x2F;strong&gt;, each tailored for specific use cases and trade-offs:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Direct Channels&lt;&#x2F;strong&gt;: Utilize TCP connections with NAT hole punching for low-latency, efficient communication.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Mediated Channels&lt;&#x2F;strong&gt;: Leverage cloud storage systems like AWS S3, Redis, and DynamoDB for scenarios requiring persistent data exchange.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Key features of FMI’s design:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Cloud-Agnostic Portability&lt;&#x2F;strong&gt;: Operates across various serverless platforms (AWS Lambda, Kubernetes) while integrating with MPI for hybrid HPC-serverless workflows.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Customizability&lt;&#x2F;strong&gt;: Developers can add new communication protocols (QUIC) and optimize collective algorithms for workload-specific needs.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Collective Operations&lt;&#x2F;strong&gt;: Implements MPI-inspired collective operations (broadcast, reduce, allreduce) optimized for serverless contexts using efficient algorithms.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;summary-of-3-implementation-of-fmi&quot;&gt;Summary of 3. Implementation of FMI&lt;&#x2F;h3&gt;
+&lt;p&gt;The FMI framework is lightweight (~1,900 lines of C++ code) and provides:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;TCPunch Library&lt;&#x2F;strong&gt;: A custom NAT hole-punching solution storing and sharing address translations to enable direct connections between serverless functions.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Multi-language Support&lt;&#x2F;strong&gt;: Primarily C++, but with Python bindings for accessibility.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Communicators&lt;&#x2F;strong&gt;: Organize serverless functions into groups, enabling scalable and independent communication patterns. Functions within a communicator synchronize with timers for consistency and fault isolation.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;summary-of-4-evaluation&quot;&gt;Summary of 4. Evaluation&lt;&#x2F;h3&gt;
+&lt;p&gt;FMI is evaluated for &lt;strong&gt;latency&lt;&#x2F;strong&gt;, &lt;strong&gt;bandwidth&lt;&#x2F;strong&gt;, &lt;strong&gt;cost&lt;&#x2F;strong&gt;, and &lt;strong&gt;scalability&lt;&#x2F;strong&gt;:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Latency&lt;&#x2F;strong&gt;: Direct TCP communication reaches microsecond-level latency, ~162x faster than AWS S3 or DynamoDB.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Cost Efficiency&lt;&#x2F;strong&gt;: FMI reduces costs by up to &lt;strong&gt;397x&lt;&#x2F;strong&gt;, with as little as $0.02 per 1,000 epochs for distributed machine learning workloads.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Scalability&lt;&#x2F;strong&gt;: Scales efficiently to 256 functions, outperforming Redis and DynamoDB, which suffer bottlenecks and timeouts at scale.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Bandwidth&lt;&#x2F;strong&gt;: Delivers superior bandwidth across various message sizes, maintaining stability under high concurrency.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;important-results&quot;&gt;Important Results&lt;&#x2F;h3&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Reduction in Communication Latency&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Direct TCP achieves microsecond-level latency, up to &lt;strong&gt;162x faster&lt;&#x2F;strong&gt; than storage-based methods.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Cost Savings&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Up to &lt;strong&gt;397x&lt;&#x2F;strong&gt; reduction in communication costs. Some ML workloads see costs under &lt;strong&gt;$0.02&lt;&#x2F;strong&gt; per 1,000 epochs, versus &lt;strong&gt;$7.52&lt;&#x2F;strong&gt; with DynamoDB.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Improved Scalability&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Efficient scaling to 256 serverless functions while maintaining low latency and high bandwidth.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Bandwidth Performance&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Superior bandwidth performance across message sizes, stable under high concurrency.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Optimized Collective Operations&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Implements broadcast, reduce, and allreduce with the lowest latency across all evaluated solutions.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Case Study in Distributed Machine Learning&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Replacing DynamoDB with FMI yields a &lt;strong&gt;1224x&lt;&#x2F;strong&gt; improvement in communication speed, with no significant integration overhead.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Minimal Integration Overhead&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Only &lt;strong&gt;four lines of code&lt;&#x2F;strong&gt; were changed to replace DynamoDB with FMI in the machine learning example.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h3 id=&quot;strengths-and-weaknesses-of-the-paper&quot;&gt;Strengths and Weaknesses of the Paper&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;strengths&quot;&gt;Strengths&lt;&#x2F;h4&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Innovative Solution&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Introduces a novel approach (TCP NAT hole punching) to solve communication bottlenecks in serverless computing.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Comprehensive Evaluation&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Benchmarks compare FMI against AWS S3, DynamoDB, and Redis for latency, cost, bandwidth, and scalability.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Scalability&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Maintains performance up to 256 serverless functions without significant degradation.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Low Cost and High Performance&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Achieves up to 397x cost savings and 162x faster communication.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Portability and Modularity&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Cloud-agnostic design compatible with AWS Lambda, Kubernetes, and MPI.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Ease of Integration&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Minimal code changes required, facilitating adoption in existing systems.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h4 id=&quot;weaknesses&quot;&gt;Weaknesses&lt;&#x2F;h4&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Reliance on Assumptions&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Assumes all functions in a communication group are co-located and run concurrently, which may not always hold in practice.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Limited Fault Tolerance&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Lacks built-in mechanisms for handling individual function failures mid-communication.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Dependency on External Infrastructure&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Requires a &lt;strong&gt;hole-punching server&lt;&#x2F;strong&gt; for address translation.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Limited Real-World Testing&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Evaluated mainly in controlled benchmarks and case studies with broader real-world validations needed.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;hr &#x2F;&gt;
+&lt;h2 id=&quot;class-discussion&quot;&gt;Class Discussion&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;clarification-on-table-1&quot;&gt;Clarification on Table 1&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Table 1 presents a &lt;strong&gt;general performance comparison&lt;&#x2F;strong&gt; of object storage, NoSQL databases, in-memory caches, and direct TCP.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Key takeaway&lt;&#x2F;strong&gt;: Direct TCP has zero cloud provider cost, but the computation burden may shift to the user, slightly reducing the impact of “no cost.”&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;udp-vs-tcp&quot;&gt;UDP vs TCP?&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Why UDP wasn’t tested&lt;&#x2F;strong&gt;:
+&lt;ul&gt;
+&lt;li&gt;Cloud providers (like AWS) control UDP usage and do not currently allow it in serverless environments.&lt;&#x2F;li&gt;
+&lt;li&gt;Existing serverless frameworks already provide direct TCP communication.&lt;&#x2F;li&gt;
+&lt;li&gt;If AWS supported UDP for serverless computing, the authors might have tested it instead of TCP.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;open-source-cloud&quot;&gt;Open Source Cloud?&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Are cloud providers open source?&lt;&#x2F;strong&gt;
+&lt;ul&gt;
+&lt;li&gt;Typically, no. Cloud providers like AWS are highly opaque, preventing visibility into the underlying infrastructure.&lt;&#x2F;li&gt;
+&lt;li&gt;They can move serverless functions among different physical servers without user knowledge, complicating assumptions about network state.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;clarification-on-figures&quot;&gt;Clarification on Figures&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Violin plots and box plots&lt;&#x2F;strong&gt;: The paper uses them to display &lt;strong&gt;data distribution&lt;&#x2F;strong&gt; across multiple trials.
+&lt;ul&gt;
+&lt;li&gt;Violin plots show data spread (with a median dot).&lt;&#x2F;li&gt;
+&lt;li&gt;Box plots depict the median, quartiles, and outliers more succinctly.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;The authors use these to demonstrate performance variance and the stability of FMI versus other solutions.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;openai-and-other-cloud-providers-use-of-fmi&quot;&gt;OpenAI (and other cloud providers’) Use of FMI?&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Could OpenAI use FMI?&lt;&#x2F;strong&gt;
+&lt;ul&gt;
+&lt;li&gt;Potentially yes. OpenAI’s services could benefit from direct TCP for certain workloads.&lt;&#x2F;li&gt;
+&lt;li&gt;TCP tunables (like window size) impact performance, as shown in the paper’s figures.&lt;&#x2F;li&gt;
+&lt;li&gt;If an open-source serverless framework offered full control, UDP or RMA-based approaches might be tested as well.&lt;&#x2F;li&gt;
+&lt;li&gt;AWS’s closed nature limits certain optimizations.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;rma-discussion&quot;&gt;RMA Discussion?&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;The paper references &lt;strong&gt;RMA&lt;&#x2F;strong&gt; (Remote Memory Access) as another model of communication.
+&lt;ul&gt;
+&lt;li&gt;It’s mentioned to highlight potential benefits and trade-offs of different data-exchange paradigms in heterogeneous environments (including FPGAs).&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;hr &#x2F;&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;FMI: Fast and Cheap Message Passing for Serverless Functions&lt;&#x2F;strong&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;OSTEP Textbook&lt;&#x2F;strong&gt; – Remzi Arpaci-Dusseau&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Computer Organization and Design RISC-V Edition: The Hardware&#x2F;Software Interface, 2nd Edition&lt;&#x2F;strong&gt; (2020)
+&lt;ul&gt;
+&lt;li&gt;Authors: David A. Patterson, John L. Hennessy&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Computer Architecture, Sixth Edition: A Quantitative Approach&lt;&#x2F;strong&gt; (2017)
+&lt;ul&gt;
+&lt;li&gt;Authors: John L. Hennessy, David A. Patterson&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;hr &#x2F;&gt;
+&lt;h2 id=&quot;generative-ai&quot;&gt;Generative AI&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;ai-tools-used&quot;&gt;AI Tools Used&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;ChatGPT&lt;&#x2F;strong&gt;: &lt;a href=&quot;https:&#x2F;&#x2F;chatgpt.com&#x2F;&quot;&gt;https:&#x2F;&#x2F;chatgpt.com&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;DeepSeek&lt;&#x2F;strong&gt;: &lt;a href=&quot;https:&#x2F;&#x2F;www.deepseek.com&#x2F;&quot;&gt;https:&#x2F;&#x2F;www.deepseek.com&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;These tools aided in:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Generating ideas for the outline.&lt;&#x2F;li&gt;
+&lt;li&gt;Explaining complex keywords.&lt;&#x2F;li&gt;
+&lt;li&gt;Providing prose feedback.&lt;&#x2F;li&gt;
+&lt;li&gt;Converting the document to Markdown&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;example-contribution&quot;&gt;Example Contribution&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Improving Clarity&lt;&#x2F;strong&gt;: Simplifying sentence structure and refining word choices for better readability.&lt;&#x2F;li&gt;
+&lt;li&gt;Changed “The paper references RMA, which does shared memory over distributed memory - another way of doing send&#x2F;receives. What was this reference for? The reference to RMA was to talk about heterogeneous environments in comparison with others such as FPGAs.” to “The paper references &lt;strong&gt;RMA&lt;&#x2F;strong&gt; (Remote Memory Access) as another model of communication.  It’s mentioned to highlight potential benefits and trade-offs of different data-exchange paradigms in heterogeneous environments (including FPGAs).”&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;limitations&quot;&gt;Limitations&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Potential Inaccuracy&lt;&#x2F;strong&gt;: Generative AI content should be externally validated.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Brainstorming vs. Factual Source&lt;&#x2F;strong&gt;: Great for brainstorming and suggestions, but final facts must be verified.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Unavailable&lt;&#x2F;strong&gt;: Deepseek provides a free alternative to ChatGPT, but the server is frequently Unavailable.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Low Quality&lt;&#x2F;strong&gt;: Writing is often repetitive and uninspired with important details missing. Changed “Message Passing Interface (MPI) – A standardized API for parallel programming in distributed memory systems. MPI enables communication between processes on different nodes. FMI is modeled after MPI to provide similar abstractions for serverless platforms.” to “&lt;strong&gt;Message Passing Interface (MPI)&lt;&#x2F;strong&gt; – A standardized API for &lt;strong&gt;parallel computing&lt;&#x2F;strong&gt;, which FMI models for FaaS.”&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;&lt;em&gt;Did you find this post insightful? Share your thoughts below!&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>Questions and Thoughts on nuKSM</title>
+                <pubDate>Wed, 15 Jan 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/nuksm/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/nuksm/</guid>
+                <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h2&gt;
+&lt;p&gt;Recently, our group reviewed a very interesting article titled “nuKSM:
+NUMA-aware Memory De-duplication on Multi-socket Servers” by Akash Panda,
+Ashish Panwar, and Arkaprava Basu.  This blog post focuses on nuKSM, a proposed
+solution to Linux’s bad interaction with NUMA systems that deal with a lot of
+data, such as servers. This past week we as a group collectively looked over
+this paper and discussed it among ourselves, through this blog post I hope to
+record some of our findings and questions.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;overview&quot;&gt;Overview&lt;&#x2F;h2&gt;
+&lt;p&gt;A quick table of notable terms:
+NUMA-non uniform memory access
+KSM-Kernel Same page Merging
+TPS-Transparent page sharing
+VM- Virtual machine&lt;&#x2F;p&gt;
+&lt;p&gt;NUMA systems have special configurations of hardware called NUMA nodes, these are small collections of processors, memory, and I&#x2F;O buses that are linked together in a NUMA architecture.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;nuksm&#x2F;numa.PNG&quot; alt=&quot;NUMA Diagram&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;nuksm-s-purpose&quot;&gt;nuKSM’s purpose&lt;&#x2F;h2&gt;
+&lt;p&gt;nuKSM is meant to fix many of the problems KSM has been known to have over the
+years, it accounts for priority when deciding which pages to delete, it changes
+the way pages are structured to increase de-duplication speeds, and it makes
+KSM work with NUMA in the first place.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;discussion&quot;&gt;Discussion&lt;&#x2F;h2&gt;
+&lt;p&gt;Me and my classmates began the discussion listening to our presenter Eugene reading off a powerpoint included in the sources of this blog. After we finished reading the presentation together we began an open discussion dissecting the paper together. I would like to highlight a few interesting questions we had after reading, if any of these questions speaks to you please feel free to look more into it or reach out for further discussion.
+Could nuKSM have positive effects on GPU memory storage techniques?
+I asked this question to Euguene due to reading the acronym CUP as GPU, even though it was a misunderstanding it led to an interesting tangent where we discussed if an implementation like nuKSM could benefit a piece of hardware like a graphics card. Both use memory and move large amounts of data around but they do it for different purposes and in different ways. We ended the discussion on that topic by noting that it might be beneficial for GPU developers to look at the techniques of nuKSM but it won’t be directly applicable to their work
+How fast is good enough for deduplication?
+One interesting thing noted in the paper is the redesign of the page reclamation algorithm. This algorithm is used to assign a since value for the priority of the specific process using a page.
+&lt;img src=&quot;https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;nuksm&#x2F;formula.PNG&quot; alt=&quot;nuShare Formula&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This new algorithm is stated to increase fairness of priority, in addition the
+page structure which used to follow a tree design was changed to a forest
+design. This forest makes for faster page duplication so that more pages can be
+deduplicated before new data comes in to overwhelm the system. The question
+remaining is how big of a burst of data is required to cause a system failure.
+nuKSM github mystery?&lt;&#x2F;p&gt;
+&lt;p&gt;According to our presenter Eugene when he began researching this paper he found the nuKSM github page for the open source version of the project. The page is still intake and folder names are present however upon trying to download anything from the page you will find a lot of empty files and links. Since the project is only 4 years old and from the Indian Institute of Science you would think the resources would still be available. The kernel patch set is currently lost to time and unavailable, they do have their own benchmarks for the kernel but it is untestable. This is even more strange when you consider that most universities require papers and their respective materials to be preserved in databases like ACM.&lt;&#x2F;p&gt;
+&lt;p&gt;Are duplicate pages acceptable?&lt;&#x2F;p&gt;
+&lt;p&gt;A small discussion took place involving the point that the original graphs
+presented in the paper did not take into account the possibility of duplicate
+pages, i.e. the practice of not deleting either page and leaving a copy with
+both VM’s. This is a scenario that would only occur in rare cases where the
+priority rate is split evenly between some number of VM’s by nearly equal
+amounts. The argument was that it would be more computationally cost effective
+to just sacrifice some memory to save a lot of time accessing a different place
+in memory, this is especially true if we consider nuKSM’s implementation of
+forested pages where the data we have to fetch is deep inside the page.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;final-thoughts&quot;&gt;Final Thoughts&lt;&#x2F;h2&gt;
+&lt;p&gt;nuKSM makes two important changes to vanilla KSM, it makes NUMA aware, and it
+changes the way it creates and manages pages. While this implementation does
+increase productivity and fix issues for NUMA systems using linux there are
+still many more chances for growth, there is a recently published paper
+discussing adaptive memory deduplication linked below that might be the next
+step in this line of thought. This paper in fact references nuKSM trying to
+harmonize cache access with page access counters in a way similar to the page
+relocation algorithm.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;https:&#x2F;&#x2F;apanwariisc.github.io&#x2F;publications&#x2F;pact-2021-nuksm&#x2F;nuksm-pact21-slides.pdf&lt;&#x2F;li&gt;
+&lt;li&gt;https:&#x2F;&#x2F;github.com&#x2F;csl-iisc&#x2F;nuKSM-pact21-artifact&lt;&#x2F;li&gt;
+&lt;li&gt;https:&#x2F;&#x2F;ieeexplore.ieee.org&#x2F;document&#x2F;10466365&lt;&#x2F;li&gt;
+&lt;li&gt;nuKSM: NUMA-aware Memory De-duplication on Multi-socket Servers&lt;&#x2F;li&gt;
+&lt;li&gt;Akash Panda*, Ashish Panwar, Arkaprava Basu&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>Mosiac Pages: Big TLB Reach with Small Pages</title>
+                <pubDate>Mon, 13 Jan 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/mosaic-pages/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/mosaic-pages/</guid>
+                <description>&lt;h2 id=&quot;background-and-context&quot;&gt;Background and Context&lt;&#x2F;h2&gt;
+&lt;p&gt;The Bottleneck Problem - Modern workloads like machine learning have massive working sets of memory that often exceed the TLB’s capacity which leads to frequent misses and performance degradation. Previous approaches rely on physical memory contiguity which increases overhead from memory defragmentation.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;keywords&quot;&gt;KEYWORDS&lt;&#x2F;h2&gt;
+&lt;p&gt;virtual memory - an abstraction of memory which provides the illusion of contiguous physical memory.&lt;&#x2F;p&gt;
+&lt;p&gt;address translation - the process of converting virtual addresses into physical addresses by using page tables and TLBs&lt;&#x2F;p&gt;
+&lt;p&gt;Translation Look-aside Buffer (TLB) - special memory cache that holds translations between virtual and physical memory, relatively small compared to caches because it is designed to be faster&lt;&#x2F;p&gt;
+&lt;p&gt;paging - physical memory is divided into frames and virtual memory is divided into pages and the operating system maps pages to frames in the page table&lt;&#x2F;p&gt;
+&lt;p&gt;Hashing - A computational technique that maps input data to a fixed range of output values using a hash function.&lt;&#x2F;p&gt;
+&lt;p&gt;Iceberg hashing - An advanced hashing technique used in Mosaic Pages to optimize memory allocation. It features low associativity, meaning each virtual page has limited potential physical frame mappings, and stability, ensuring consistent mappings.&lt;&#x2F;p&gt;
+&lt;p&gt;Radix tree - A tree-like data structure used to store key-value pairs compactly, where each node represents a prefix of the keys.&lt;&#x2F;p&gt;
+&lt;p&gt;Arity - The number of arguments or inputs a function takes.
+Address Space Identifier (ASID) - A unique identifier assigned to each process’s TLB mappings. ASIDs prevent TLB entries from one process being accessed by another during a context switch.&lt;&#x2F;p&gt;
+&lt;p&gt;Detailed summary of the main contributions of the paper&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;summary-of-1-introduction&quot;&gt;Summary of 1. Introduction:&lt;&#x2F;h2&gt;
+&lt;p&gt;The paper introduces Mosaic Pages, which is a technique to increase the reach of Translation Lookaside Buffers (TLBs) without relying on physical contiguity, thus eliminating the need for memory defragmentation. Mosaic Pages leverages virtual contiguity and Iceberg hashing to compress multiple address translations into a single TLB entry. Some highlights from the paper include:
+Mosaic Pages compresses translations by mapping virtual pages to a limited number of physical page frames using hashing which reduces the size of each translation so that multiple mappings can fit into one TLB entry.
+A full-system prototype implemented in gem5 demonstrated up to 98% reduction in TLB misses compared to a baseline model.
+A Verilog implementation of the technique indicates minimal impact on clock speed or area.
+Mosaic Pages swaps fewer pages than Linux while maintaining similar performance when under memory pressure.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;summary-of-2-mosaic-pages&quot;&gt;Summary of 2. Mosaic Pages:&lt;&#x2F;h2&gt;
+&lt;p&gt;The section discusses the design of Mosaic Pages. A Mosaic Page comprises a virtually consecutive 4 KiB base pages where a is between 4 and up to 64. Translations for all a base pages are compressed into one TLB entry using Compressed Physical Frame Numbers (CPFNs). These CPFNs mean that virtual pages are mapped to a small set of physical frames (h = 104 in experiments) using hashing, reducing the number of bits required for translation. Physical memory is structured as a hash table with buckets containing slots. Each virtual page is hashed to specific buckets, and its placement is recorded as a CPFN. The Mosaic Pages technique uses Iceberg Hashing, which ensures low associativity, stability, and high utilization of memory. Physical memory is divided into buckets with “front yard” and “back yard” sections for load balancing. Pages are allocated to the least-filled bucket, minimizing conflicts while maintaining near-full memory utilization. Mosaic Pages use a new Horizon LRU algorithm for managing swapping when no slots are available.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;summary-of-3-implementation-of-mosaic-pages&quot;&gt;Summary of 3. Implementation of Mosaic Pages:&lt;&#x2F;h2&gt;
+&lt;p&gt;This section describes the implementation of Mosaic Pages using the gem5 simulator and a Linux prototype. The components include a Gem5 Simulation of the Mosaic TLB and a Linux Prototype that uses the reserved memory and LRU replacement policy.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;summary-of-4-evaluation&quot;&gt;Summary of 4. Evaluation:&lt;&#x2F;h2&gt;
+&lt;p&gt;This section discusses the performance and feasibility of Mosaic Pages. Using workloads like Graph500 and XSBench, it was found that Mosaic Pages reduces TLB misses across all workloads and achieves up to 98% reduction with a Mosaic-64 configuration. Mosaic experiences associativity conflicts only after 98% memory utilization. Swapping was found to be comparable to base Linux.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;summary-of-5-related-work&quot;&gt;Summary of 5. Related Work:&lt;&#x2F;h2&gt;
+&lt;p&gt;This section reviews prior research addressing TLB performance challenges. Previously, “huge pages” were used to improve TLB reach but this would lead to overhead due to defragmentation. Mosaic avoids physical contiguity by using low-associative hashing for flexibility and reduced hardware costs. A redesign of TLB entries that combines adjacent virtually and physically contiguous pages into one entry reduces TLB misses. Mosaic uses Iceberg hashing to increase TLB reach and hit rate, while hashed page tables focus on reducing miss costs.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;important-results-and-what-they-mean&quot;&gt;Important results and what they mean&lt;&#x2F;h2&gt;
+&lt;ol&gt;
+&lt;li&gt;Reduction in TLB Misses Mosaic Pages reduced TLB misses by 6–81% across various workloads compared to a traditional TLB. Using Graph500, Mosaic reduced misses with an improvement of up to 98%.&lt;&#x2F;li&gt;
+&lt;li&gt;Memory Utilization and Swapping Behavior Mosaic Pages achieved 98% memory utilization before experiencing associativity conflicts, compared to 99% for Linux.&lt;&#x2F;li&gt;
+&lt;li&gt;Hardware Feasibility Mosaic hardware synthesized on a 28nm CMOS process demonstrated 220 ps latency at 4 GHz.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h2 id=&quot;strengths-and-weaknesses-of-the-paper&quot;&gt;Strengths and Weaknesses of the Paper&lt;&#x2F;h2&gt;
+&lt;p&gt;Strengths of the Paper&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Innovative Concept: Mosaic Pages introduces a novel approach to increasing the reach of Translation Lookaside Buffers (TLBs) without relying on physical memory contiguity. By leveraging virtual contiguity and Iceberg Hashing, it compresses multiple address translations into a single TLB entry.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Comprehensive Evaluation: The paper provides extensive performance evaluations using a variety of workloads, such as Graph500 and XSBench, and simulations implemented in gem5.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Scalability: Mosaic Pages performs well under high memory utilization, maintaining efficiency up to 98% memory usage without significant degradation.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Low Hardware Overhead: The hardware implementation of Mosaic Pages adds minimal area and latency overhead. The 28nm CMOS implementation demonstrates only 220 ps of latency at 4 GHz, making it feasible for integration into existing systems.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h2 id=&quot;weaknesses-of-the-paper&quot;&gt;Weaknesses of the Paper&lt;&#x2F;h2&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Dependency on Iceberg Hashing Scheme: Mosaic Pages relies heavily on the Iceberg Hashing algorithm to achieve its goals. This dependency limits flexibility and introduces a single point of failure if the hashing algorithm does not perform well under specific conditions or workloads.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Worse memory pressure performance compared to Linux: Under high memory pressure, Mosaic Pages performs slightly worse than Linux. While Mosaic Pages avoids memory overhead, its inability to match Linux’s performance under these conditions limits its appeal for memory-constrained environments.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Low number of citations might indicate that paper is not sufficiently novel: The paper has a limited number of citations (21 at the time of writing), which could indicate that the concept is either not widely known or lacks sufficient novelty to generate significant interest in the academic community.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Page table sharing is not available: Mosaic Pages does not support sharing of page tables across processes. For example, shared libraries, which are common in multi-process applications, cannot be mapped efficiently, leading to higher memory usage.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Did not discuss NUMA or GPU implementations: The paper does not address Non-Uniform Memory Access (NUMA) architectures or GPU memory systems, both of which have unique challenges and requirements. NUMA systems require careful handling of memory locality, while GPUs rely on massively parallel processing with their own memory hierarchies.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h2 id=&quot;class-discussion&quot;&gt;Class Discussion:&lt;&#x2F;h2&gt;
+&lt;h2 id=&quot;gaming-workloads&quot;&gt;Gaming workloads?&lt;&#x2F;h2&gt;
+&lt;p&gt;The lack of improvement on the GUPS benchmark, which measures random memory access performance, suggests that Mosaic Pages may face challenges with workloads heavily reliant on randomness. While gaming workloads share some aspects of random access, their diverse memory access patterns, including sequential access for assets and textures, might still allow Mosaic Pages to provide performance benefits in certain scenarios.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;gpus&quot;&gt;GPUs?&lt;&#x2F;h2&gt;
+&lt;p&gt;While the paper focuses on CPU workloads, it raises questions about the applicability of Mosaic Pages to GPUs. GPUs, which typically have TLBs as part of their memory management units (MMUs), rely heavily on high-bandwidth and parallel processing architectures. The integration of Mosaic Pages into GPU systems could reduce TLB misses, particularly for workloads with predictable memory access patterns. However, unique architectural challenges in GPUs such as managing parallel threads and high throughput might require significant adaptations of Mosaic Pages to align with GPU memory subsystems.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;context-switching-in-tlb&quot;&gt;Context Switching in TLB?&lt;&#x2F;h2&gt;
+&lt;p&gt;What happens to TLB when a context switch occurs? Context switches, an essential part of multitasking in modern operating systems, pose a significant challenge to TLB efficiency and security. During a context switch, the TLB must be managed to prevent unauthorized access to memory pages from the previous process. Typically, this is achieved by entirely invalidating the TLB, which ensures security but introduces performance overhead as new mappings must be repopulated. A more optimal solution involves the use of Address Space Identifiers (ASIDs), which assign a unique identifier to each process. ASIDs allow the TLB to selectively clear only the mappings associated with the previous process, leaving shared mappings intact. This reduces the performance cost of context switches while maintaining strict memory isolation. While the paper does not explicitly discuss context switch management, integrating Mosaic Pages with an ASID-based approach could further enhance TLB efficiency and security.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-does-iceberg-hashing-work&quot;&gt;How does Iceberg Hashing Work?&lt;&#x2F;h2&gt;
+&lt;p&gt;Iceberg Hashing is an essential part of Mosaic Pages ability to compress virtual-to-physical address mappings into Compressed Physical Frame Numbers (CPFNs). This advanced hashing technique reduces the number of bits required per mapping, enabling the TLB to store multiple mappings in a single entry. To achieve this, Iceberg Hashing must meet three critical properties:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Range: The hash function should evenly distribute virtual addresses across the available physical frames to ensure efficient memory utilization.&lt;&#x2F;li&gt;
+&lt;li&gt;Stability: The function must produce consistent, deterministic mappings for the same inputs to maintain system reliability.&lt;&#x2F;li&gt;
+&lt;li&gt;Reliability: It should minimize collisions and conflicts, even under high memory pressure.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h2 id=&quot;mapping-conflict&quot;&gt;Mapping Conflict?&lt;&#x2F;h2&gt;
+&lt;p&gt;Mapping conflicts can occur in systems using hashed memory allocation like Mosaic Pages. When a new virtual-to-physical mapping conflicts with an existing one, Mosaic Pages resolves the issue by evicting the previous mapping. This eviction follows a heuristic akin to the Least Recently Used (LRU) policy, ensuring that the mapping least likely to be accessed is replaced. Mosaic Pages operates with a fixed associativity. This level of associativity ensures that mappings are evenly distributed across memory, reducing the frequency of conflicts.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;front-yard-vs-back-yard&quot;&gt;Front Yard vs Back Yard?&lt;&#x2F;h2&gt;
+&lt;p&gt;Mosaic Pages introduces a memory organization strategy by dividing physical memory buckets into two distinct regions called the front yard and the backyard. The front yard, which constitutes the larger portion of the bucket, is reserved for frequently accessed data. This prioritization ensures low-latency access to high-demand pages, enhancing performance for workloads that depend on fast memory access. On the other hand, the backyard serves as a storage area for less frequently accessed, ‘ghost’ pages.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;dealing-with-conflict&quot;&gt;Dealing with Conflict?&lt;&#x2F;h2&gt;
+&lt;p&gt;Mosaic Pages deals with memory allocation conflicts with a fixed associativity of 104, derived from the properties of Iceberg Hashing. This level of associativity ensures a well-distributed mapping of virtual pages to physical frames, reducing the likelihood of conflicts even as memory utilization approaches 98%. In comparison, the standard Linux allocator begins swapping at similar utilization levels but incurs higher memory overhead. Mosaic Pages avoids this overhead by managing conflicts efficiently, relying on the hashing algorithm to spread entries evenly across the available physical frames. Even under high memory pressure, Mosaic Pages maintains performance comparable to Linux.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;numa&quot;&gt;NUMA?&lt;&#x2F;h2&gt;
+&lt;p&gt;Mosaic Pages applicability to NUMA (Non-Uniform Memory Access) architectures remains unexplored. NUMA introduces additional dimensions to the physical address space, as memory is divided across multiple nodes with varying access latencies. Integrating Mosaic Pages into NUMA systems would require enhancements to the Iceberg Hashing algorithm to handle 2D load balancing mappings not only across buckets but also across NUMA nodes. This adaptation would involve node-aware hashing and dynamic monitoring to ensure even distribution of memory accesses and minimize the performance penalties associated with remote access. Exploring this area could unlock further scalability for Mosaic Pages in high-performance and distributed computing environments.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;isa-adaptation&quot;&gt;ISA Adaptation?&lt;&#x2F;h2&gt;
+&lt;p&gt;Adapting Mosaic TLB to different Instruction Set Architectures (ISAs) would involve primarily hardware-level modifications to the Memory Management Unit (MMU), rather than changes to the ISA itself. For example, implementing Mosaic TLB on x86 would require integrating Iceberg Hashing and support for Compressed Physical Frame Numbers (CPFNs) into the MMU, alongside minor adjustments to the page allocator. This adaptation is feasible, as demonstrated by the Gem5-based prototype. In contrast, RISC-V offers greater flexibility due to its open-source nature, allowing deeper customization of page tables and memory management. Researchers could design a RISC-V processor with a custom MMU tailored for Mosaic Pages, ensuring seamless integration with the ISA.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;cost&quot;&gt;Cost?&lt;&#x2F;h2&gt;
+&lt;p&gt;The cost of implementing Mosaic Pages is described as ‘not prohibitively expensive,’ primarily due to its efficient use of resources. By compressing multiple mappings into a single TLB entry through Compressed Physical Frame Numbers (CPFNs), Mosaic Pages significantly reduce the memory footprint of TLB entries. This enables increased TLB capacity without requiring additional memory resources. The Verilog implementation further highlights the practicality of Mosaic Pages and suggest that Mosaic Pages can be integrated into existing hardware with modest design changes to the Memory Management Unit (MMU).&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;origin-of-iceberg-hashing&quot;&gt;Origin of Iceberg Hashing?&lt;&#x2F;h2&gt;
+&lt;p&gt;The authors of Mosaic Pages did not invent Iceberg Hashing but recognized its potential for their TLB optimization technique. Iceberg Hashing excels in three critical areas:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Low Associativity: By minimizing collisions, it ensures efficient distribution of virtual-to-physical mappings across available memory frames.&lt;&#x2F;li&gt;
+&lt;li&gt;Stability: Its deterministic behavior guarantees consistent mappings, an essential feature for reliable memory management.&lt;&#x2F;li&gt;
+&lt;li&gt;High Utilization: Iceberg Hashing optimizes memory usage, achieving near-full capacity without significant performance penalties.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h2 id=&quot;shared-memory-support&quot;&gt;Shared Memory Support?&lt;&#x2F;h2&gt;
+&lt;p&gt;One notable limitation of Mosaic Pages is its lack of support for shared memory. Shared memory allows multiple processes to reference the same data without duplication, reducing the memory footprint and improving efficiency. Without this capability, Mosaic Pages requires each process to maintain its own copy of shared data, such as libraries or frameworks, leading to increased memory usage. The primary reason for this limitation lies in the Iceberg Hashing algorithm, which maps virtual pages to physical frames in a one-to-one manner for each process. Modifying the algorithm to handle shared mappings would require significant changes to both the hashing mechanism and the TLB structure. While the paper acknowledges this shortcoming, it stops short of offering a solution. Addressing this limitation would make Mosaic Pages far more versatile.&lt;&#x2F;p&gt;
+&lt;p&gt;Arbitrary mapping between PA and VA?
+Mosaic Pages imposes restrictions on arbitrary physical address (PA) to virtual address (VA) mappings due to the constraints of the Iceberg Hashing algorithm. This deterministic hashing mechanism is designed to optimize memory utilization and reduce TLB misses by compressing multiple virtual-to-physical mappings into a single TLB entry. This could pose challenges in specialized systems that require fine-grained control over address mappings. This trade-off reflects a common theme in academic research of focusing on solving specific challenges which often leads to compromises in other areas.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;sources&quot;&gt;Sources:&lt;&#x2F;h2&gt;
+&lt;p&gt;One-Level Storage System Kilburn et al. IRE Transactions on Electronic Computers, 1962.
+OSTEP Textbook Chapters 18-20 Remzi Arpaci-Dusseau
+Mosaic Pages: Big TLB Reach with Small Pages
+Computer Organization and Design RISC-V Edition The Hardware Software Interface 2nd Edition - December 11, 2020 Authors: David A. Patterson, John L. Hennessy
+Computer Architecture, Sixth Edition: A Quantitative Approach December 2017 Authors: John L. Hennessy, David A. Patterson&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;generative-ai&quot;&gt;Generative AI&lt;&#x2F;h2&gt;
+&lt;p&gt;Link to specific Tool: https:&#x2F;&#x2F;chatgpt.com&#x2F;
+This tool was used to help generate ideas for the outline, provide explanations of keywords, and offer feedback on specific prose.
+Concrete example: changed “Radix tree - a data structure used in page tables” to “Radix tree - A tree-like data structure used to store key-value pairs compactly, where each node represents a prefix of the keys.”
+Prose assistance could be overly verbose and ostentatious: “Unlike traditional systems that allow arbitrary mappings of physical addresses (PAs) to virtual addresses (VAs), Mosaic Pages imposes restrictions on these mappings due to the constraints of the Iceberg Hashing algorithm. This deterministic hashing mechanism is designed to optimize memory utilization and reduce TLB misses by compressing multiple virtual-to-physical mappings into a single TLB entry. However, the trade-off is a loss of flexibility. Addresses can only map to a limited set of physical frames determined by the hash function.”
+Generative AI tools are excellent tools for brainstorming, offering feedback, and providing explanations. These tools should not be trusted for accuracy. Any specific detail mentioned must be externally validated.&lt;&#x2F;p&gt;
+</description>
+            </item>
+        
+            <item>
+                <title>Welcome to ECE 4&#x2F;599!</title>
+                <pubDate>Mon, 06 Jan 2025 00:00:00 +0000</pubDate>
+                <link>https%3A//khale.github.io/mem-systems-w25/blog/welcome/</link>
+                <guid>https%3A//khale.github.io/mem-systems-w25/blog/welcome/</guid>
+                <description>&lt;p&gt;I’m excited to teach this new research course on memory systems at OSU! We’ll be covering a lot of ground,
+focusing on systems software research, but touching areas in memory technologies, fault tolerance, distributed systems, storage, hardware accelerators, and much more.&lt;&#x2F;p&gt;
+&lt;p&gt;We’ll use this course blog for paper discussions and project reports throughout the quarter.&lt;&#x2F;p&gt;
+</description>
+            </item>
+        
+    </channel>
+</rss>
