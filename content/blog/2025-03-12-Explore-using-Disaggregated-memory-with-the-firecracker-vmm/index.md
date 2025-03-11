@@ -210,7 +210,7 @@ This project went through several iterations before completion. The goal of the 
 ---  
 
 ## References  
-- [STREAM Benchmark] (https://www.cs.virginia.edu/stream/FTP/Code/)
+- [STREAM Benchmark](https://www.cs.virginia.edu/stream/FTP/Code/)
 - [AMD STREAM Benchmark](https://www.amd.com/en/developer/zen-software-studio/applications/spack/stream-benchmark.html)  
 - [Firecracker Documentation](https://firecracker-microvm.github.io/)  
 - [Firecracker GitHub](https://github.com/firecracker-microvm/firecracker)  
