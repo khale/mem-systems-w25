@@ -211,7 +211,8 @@ This project went through several iterations before completion. The goal of the 
 ---  
 
 ## References  
-- [AMD STREAM Benchmark](https://www.amd.com/en/developer/zen-software-studio/applications/spack/stream-benchmark.html)  
+- [AMD STREAM Benchmark](https://www.amd.com/en/developer/zen-software-studio/applications/spack/stream-benchmark.html)
+- [STREAM Benchmark] (https://www.cs.virginia.edu/stream/FTP/Code/)
 - [Firecracker Documentation](https://firecracker-microvm.github.io/)  
 - [Firecracker GitHub](https://github.com/firecracker-microvm/firecracker)  
 - [Firecracker Kernel Setup](https://github.com/firecracker-microvm/firecracker/blob/main/docs/rootfs-and-kernel-setup.md)  
