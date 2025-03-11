@@ -56,12 +56,16 @@ These assess data transfer performance, computational efficiency, parallel memor
 ### Figures:   
 ![Figure1](fig1.png)  
 Figure 1: STREAM’s evaluation of Best Rate (MB/s) on both Firecracker and Local Machine.  
+
 ![Figure2](fig2.png)   
-Figure 2: STREAM’s evaluation of Average Time (ms) on both Firecracker and Local Machine.    
+Figure 2: STREAM’s evaluation of Average Time (ms) on both Firecracker and Local Machine.  
+
 ![Figure3](fig3.png)  
-Figure 3: STREAM’s evaluation of Minimum Time (ms) on both Firecracker and Local Machine.    
+Figure 3: STREAM’s evaluation of Minimum Time (ms) on both Firecracker and Local Machine.  
+
 ![Figure4](fig4.png)  
-Figure 4: STREAM’s evaluation of Maximum Time (ms) on both Firecracker and Local Machine.   
+Figure 4: STREAM’s evaluation of Maximum Time (ms) on both Firecracker and Local Machine.  
+
 
 Taking the average of all four functions of STREAM, we found:  
 - Best Rate (MB/s): STREAM has 7.2% less bandwidth on Firecracker compared to the local machine.  
