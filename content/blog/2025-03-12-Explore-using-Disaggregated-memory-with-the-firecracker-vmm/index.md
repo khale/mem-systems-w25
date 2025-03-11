@@ -82,7 +82,7 @@ Our next challenge was to get a custom file structure for the VM setup with the 
 Implementing disaggregated memory was difficult as it required creating virtual nodes that would simulate the pooled memory. With the switch to a personal computer, the process became difficult to set up, and unfortunately left out of the testing. Another issue was that Firecracker is written in Rust but none of the project members have any prior experience with Rust. An incorrect assumption our team made was that Rust would be an approachable language that we would have the time and resources to learn. This was not the case and posed a more significant challenge than we had anticipated. 
 
 ## Next Steps  
-Our proposal for implementing disaggregated memory support in Firecracker involves modifying several memory-related files in the Firecracker VMM kernel. These files are shown in the following directory map of Firecracker, where bold-italic files are those that should be modified to support disaggregated memory:  
+Our proposal for implementing disaggregated memory support in Firecracker involves modifying several memory-related files in the Firecracker VMM kernel. These files are shown in the following directory map of Firecracker, where three asterisks-enclosed files are those that should be modified to support disaggregated memory:  
 
 ```
 firecracker
@@ -137,12 +137,6 @@ firecracker
 │       │   ├── builder.rs
 │       │   ├── cpu_config
 │       │   ├── device_manager
-│       │   │   ├── acpi.rs
-│       │   │   ├── legacy.rs
-│       │   │   ├── ***mmio.rs***
-│       │   │   ├── mod.rs
-│       │   │   ├── ***persist.rs***
-│       │   │   └── ***resources.rs***
 │       │   ├── devices
 │       │   ├── dumbo
 │       │   ├── gdb
