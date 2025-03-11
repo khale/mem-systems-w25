@@ -155,11 +155,6 @@ firecracker
 │       │   ├── utils
 │       │   ├── vmm_config
 │       │   └── vstate
-│       │       ├── ***kvm.rs***
-│       │       ├── ***memory.rs***
-│       │       ├── mod.rs
-│       │       ├── vcpu
-│       │       └── vm
 │       └── tests
 ├── tests
 └── tools
