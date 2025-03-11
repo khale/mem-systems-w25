@@ -129,11 +129,34 @@ firecracker
 │   ├── snapshot-editor
 │   ├── utils
 │   └── vmm
-│       ├── Cargo.toml
 │       ├── benches
+│       ├── Cargo.toml
 │       ├── src
 │       │   ├── acpi
 │       │   ├── arch
+│       │   │   ├── aarch64
+│       │   │   │   ├── cache_info.rs
+│       │   │   │   ├── fdt.rs
+│       │   │   │   ├── gic
+│       │   │   │   ├── ***layout.rs***
+│       │   │   │   ├── mod.rs
+│       │   │   │   ├── output_GICv2.dtb
+│       │   │   │   ├── output_GICv3.dtb
+│       │   │   │   ├── output_initrd_GICv2.dtb
+│       │   │   │   ├── output_initrd_GICv3.dtb
+│       │   │   │   ├── regs.rs
+│       │   │   │   └── vcpu.rs
+│       │   │   ├── mod.rs
+│       │   │   └── x86_64
+│       │   │       ├── cpu_model.rs
+│       │   │       ├── gdt.rs
+│       │   │       ├── gen
+│       │   │       ├── interrupts.rs
+│       │   │       ├── ***layout.rs***
+│       │   │       ├── mod.rs
+│       │   │       ├── mptable.rs
+│       │   │       ├── msr.rs
+│       │   │       └── regs.rs
 │       │   ├── builder.rs
 │       │   ├── cpu_config
 │       │   ├── device_manager
