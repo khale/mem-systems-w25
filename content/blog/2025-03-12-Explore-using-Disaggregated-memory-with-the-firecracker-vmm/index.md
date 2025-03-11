@@ -182,7 +182,7 @@ firecracker
 └── tools
 ```
 
-Purposes of each file and why they would need to be modified to support disaggregated memory  
+Purposes of each file and why they would need to be modified to support disaggregated memory:  
 - firecracker/resources/seccomp/x86_64-unknown-linux-musl.json
 - firecracker/resources/seccomp/aarch64-unknown-linux-musl.json 
   - These files contain the syscall handlers used for x86_64 and aarch64 architectures. Disaggregated-related syscalls would be different from regular local memory syscalls (when using RDMA), so that is why we believe these files would need to be modified to support those different syscalls (depending on architecture of course). This of course depends on the disaggregated memory implementation in the kernel - but if new syscalls were created to support disaggregated memory in the kernel, then these files would need to be modified to support those added syscalls. Note that with CXL disaggregated memory these files would remain the same, as CXL uses the same syscalls as regular local memory. 
