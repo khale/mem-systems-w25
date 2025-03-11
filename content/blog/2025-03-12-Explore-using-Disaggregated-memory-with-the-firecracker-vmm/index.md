@@ -1,11 +1,11 @@
 +++
 title = "Exploring Disaggregated Memory Performance with Firecracker VMM"
 [[extra.authors]]
-name = "Gabriel Rodgers (leader)"
+name = "Gabriel Rodgers"
 [[extra.authors]]
-name = "Sami Aljabery (blogger)"
+name = "Sami Aljabery"
 [[extra.authors]]
-name = "Noah Bean (scribe)"
+name = "Rabecka Moffit"
 +++
 
 
@@ -57,21 +57,20 @@ These assess data transfer performance, computational efficiency, parallel memor
 ![Figure1](fig1.png)  
 Figure 1: STREAM’s evaluation of Best Rate (MB/s) on both Firecracker and Local Machine.  
 
-![Figure2](fig2.png)   
+![Figure2](fig2.png)  
 Figure 2: STREAM’s evaluation of Average Time (ms) on both Firecracker and Local Machine.  
 
-![Figure3](fig3.png)  
+![Figure3](fig3.png)
 Figure 3: STREAM’s evaluation of Minimum Time (ms) on both Firecracker and Local Machine.  
 
-![Figure4](fig4.png)  
-Figure 4: STREAM’s evaluation of Maximum Time (ms) on both Firecracker and Local Machine.  
-
+![Figure4](fig4.png)
+Figure 4: STREAM’s evaluation of Maximum Time (ms) on both Firecracker and Local Machine. 
 
 Taking the average of all four functions of STREAM, we found:  
 - Best Rate (MB/s): STREAM has 7.2% less bandwidth on Firecracker compared to the local machine.  
 - Average Time (s): STREAM is 6.9% slower on Firecracker than on the local machine on average.  
 - Minimum Time (s): STREAM's minimum time benchmark is 7.8% slower on Firecracker than the local machine.  
-- Maximum Time (s): Firecracker is 9.7% slower than the local machine.  
+- Maximum Time (s): STREAM's maximum time benchmark is 9.7% slower on Firecracker than the local machine.  
 
 
 ## Issues
@@ -82,7 +81,7 @@ Our next challenge was to get a custom file structure for the VM setup with the 
 Implementing disaggregated memory was difficult as it required creating virtual nodes that would simulate the pooled memory. With the switch to a personal computer, the process became difficult to set up, and unfortunately left out of the testing. Another issue was that Firecracker is written in Rust but none of the project members have any prior experience with Rust. An incorrect assumption our team made was that Rust would be an approachable language that we would have the time and resources to learn. This was not the case and posed a more significant challenge than we had anticipated. 
 
 ## Next Steps  
-Our proposal for implementing disaggregated memory support in Firecracker involves modifying several memory-related files in the Firecracker VMM kernel. These files are shown in the following directory map of Firecracker, where three asterisks-enclosed files are those that should be modified to support disaggregated memory:  
+Our proposal for implementing disaggregated memory support in Firecracker involves modifying several memory-related files in the Firecracker VMM kernel. These files are shown in the following directory map of Firecracker, where three asterisked-files are those that should be modified to support disaggregated memory:  
 
 ```
 firecracker
@@ -211,8 +210,8 @@ This project went through several iterations before completion. The goal of the 
 ---  
 
 ## References  
-- [AMD STREAM Benchmark](https://www.amd.com/en/developer/zen-software-studio/applications/spack/stream-benchmark.html)
-- [STREAM Benchmark](https://www.cs.virginia.edu/stream/FTP/Code/)
+- [STREAM Benchmark] (https://www.cs.virginia.edu/stream/FTP/Code/)
+- [AMD STREAM Benchmark](https://www.amd.com/en/developer/zen-software-studio/applications/spack/stream-benchmark.html)  
 - [Firecracker Documentation](https://firecracker-microvm.github.io/)  
 - [Firecracker GitHub](https://github.com/firecracker-microvm/firecracker)  
 - [Firecracker Kernel Setup](https://github.com/firecracker-microvm/firecracker/blob/main/docs/rootfs-and-kernel-setup.md)  
