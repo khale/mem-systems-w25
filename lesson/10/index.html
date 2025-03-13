@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: In-Memory KV Stores</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.css" integrity="sha384-zB1R0rpPzHqg7Kpt0Aljp8JPLqbXI3bhnPWROx27a9N0Ll6ZP/+DiW/UqRcLbRjq" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.js" integrity="sha384-y23I5Q6l+B6vatafAwxRu/0oK/79VlbSz7Q9aiSZUvyWYIYsd+qj+o24G5ZU2zJz" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/contrib/auto-render.min.js" integrity="sha384-kWPLUVMOks5AQFrykwIup5lo0m3iMkkHrD0uJ4H5cjeGihAutqP0yW0J6dpFiVkI" crossorigin="anonymous" onload="renderMathInElement(document.body, { delimiters: [ {left: '$$', right: '$$', display: true}, {left: '\\[', right: '\\]', display: true}, {left: '$', right: '$', display: false} ] });"></script>
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 10:
+  In-Memory KV Stores
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/44" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;memcached.org&#x2F;about" class="icon reading">About memcached</a>
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;www.usenix.org&#x2F;system&#x2F;files&#x2F;conference&#x2F;nsdi13&#x2F;nsdi13-final170_update.pdf" class="icon reading">* Scaling Memcache at Facebook</a>
+    
+    <br>Nishtala et al., NSDI &#x27;13
+    
+  </li>
+  
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel comfortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<p>The slides from lecture can be found on Canvas.</p>
+<h3 id="basics-of-kv-stores">Basics of KV Stores</h3>
+<p>You can think of a key-value store (KV Store) as a big hashtable storing variable-length objects. These objects are looked up using keys.
+If you’re a python programmer, you can think of a <code>dict</code>. However, unlike typical hash tables, KV stores may involve persistence
+and/or distributed approaches. A common implementation method involves using these hash tables as an alternative to a database (i.e., a NoSQL database).
+Here we need the values to be durable on disk, but we don’t need complex queries like joins or aggregations. The paper is more concerned
+about KV <strong>caches</strong>, where the values are <strong>not</strong> made durable, and everything lives in memory. However, even in this system, to increase
+availability and performance, such KV Caches are commonly distributed among many machines.</p>
+<p>Some KVStores can maintain consistent replicas, e.g., <a href="https://etcd.io/">etcd</a>, which uses Raft.</p>
+<h3 id="distributed-hash-tables-dht">Distributed hash tables (DHT)</h3>
+<p>How do we spread a KV cache across multiple nodes? The easy answer is to just partition your key space. Suppose we use English given names as keys.
+We might say node 0 handles names starting with “A-C”, node 1 handles names starting with “D-F”, and so on. There are two problems with this:</p>
+<ol>
+<li>there may be hot spots (the request stream may not be uniformly distributed across the keyspace), limiting performance.</li>
+<li>node additions are difficult (adding a new node means we have to repartition the keyspace).</li>
+</ol>
+<p>The alternative is to use an implementation that evenly distributes the keyspace and handles dynamic node changes. <a href="https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf">Consistent hashing</a> is a common approach.</p>
+<h3 id="slab-allocators">Slab Allocators</h3>
+<p>External fragmentation (holes of unusable free space around allocations) makes memory allocation slower. Allocators
+have to handle this either by defragmenting (e.g., compacting) the free space, or by using fixed-length allocations that
+render such fragmentation impossible. A slab allocator is an instance of the latter approach. The basic observation is
+that some systems have many allocations of the same type of object. For example in an OS, we might have many instances
+of a <code>struct page</code> or a <code>struct mem_region</code> or a <code>struct proc</code>. Since all such structures are the same size, we could
+tailor our allocator to account for that. This is what a slab allocator does: each object type gets its own cache.
+Within that cache, we can have several large <em>slabs</em> of memory, each of which has k slots for an object of the
+corresponding type. Thus, to allocate, we first check to see if there is an existing slab. If there is one, we
+find the next empty object slot and use it. If not, we create a new slab (by requesting memory from the OS, e.g., via <code>mmap()</code>).
+Slabs are also fixed size, so their allocation is relatively fast. There are also caching benefits to this approach.</p>
+<h3 id="log-structured-storage">Log-structured Storage</h3>
+<p>In some systems, in-place updates can introduce performance issues and poor locality. An example would be on a storage
+medium that has bad random access performance (e.g., a spinning disk drive). This suggests implementation schemes that
+prefer sequential access. The basic idea of log-structured storage is that instead of doing in-place updates to existing data,
+we just create a new copy at the front of a <strong>log</strong>. Items are added to the log at the tail end, and updates also produce new log entries.
+Now, of course, we need to manage stale copies towards the front of the log that were stranded by updates. We can
+use <em>garbage collection</em> for this, where we periodically scan the log from the front, clearing out overwritten items.
+This may produce holes, necessitating log compaction. See <a href="https://pages.cs.wisc.edu/~remzi/OSTEP/file-lfs.pdf">LFS</a> for an influential example.</p>
+<h3 id="spin-locks">Spin Locks</h3>
+<p>This is a simple lock implementation (to ensure mutual exclusion for critical sections).
+There is a flag value in a shared memory location that all threads race on to obtain exclusive access. Here’s a sample
+implementation in C</p>
+<pre data-lang="C" style="background-color:#ffffff;color:#303030;" class="language-C "><code class="language-C" data-lang="C"><span style="color:#9d3293;">typedef struct </span><span>{
+</span><span>    </span><span style="color:#9d3293;">int</span><span> flag;
+</span><span>} spinlock_t;
+</span><span>
+</span><span style="color:#9d3293;">void </span><span style="color:#0068b3;">spinlock_init</span><span>(spinlock_t * </span><span style="color:#f0523f;">l</span><span>) {
+</span><span>    l-&gt;flag = </span><span style="color:#f89829;">0</span><span>;
+</span><span>}
+</span><span>
+</span><span style="color:#9d3293;">void </span><span style="color:#0068b3;">spinlock_lock</span><span>(spinlock_t * </span><span style="color:#f0523f;">l</span><span>) {
+</span><span>    </span><span style="color:#9d3293;">while </span><span>(</span><span style="color:#f0523f;">atomic_test_and_set</span><span>(&amp;l-&gt;flag)); </span><span style="color:#a0a0a0;">// spin until the flag is 0 using atomics
+</span><span>}
+</span><span>
+</span><span style="color:#9d3293;">void </span><span style="color:#0068b3;">spinlock_unlock</span><span>(spinlock_t * </span><span style="color:#f0523f;">l</span><span>) {
+</span><span>   l-&gt;flag = </span><span style="color:#f89829;">0</span><span>;
+</span><span>}
+</span></code></pre>
+<h3 id="frequency-counting">Frequency Counting</h3>
+<p><a href="https://redis.io/blog/count-min-sketch-the-art-and-science-of-estimating-stuff/">Count-min</a>
+<a href="https://dsf.berkeley.edu/cs286/papers/countmin-latin2004.pdf">sketch</a> is one
+algorithm referred to in the paper today. The basic idea is that we don’t want to
+store exact counts for every item to save space. This is useful for large-scale streaming
+systems where we’re seeing a lot of objects and where some degree of inaccuracy is viable. Basically, we maintain a 2D
+matrix of dimensions D x W, where there are D rows and W columns. When we get
+a read, we want to update a frequency count. We take the key and perform
+D hashes on it, $H_d1(k)$, $H_d2(k)$, and so on. Each of these hashes will
+produce an index into one of W cells, each containing a count. We will
+increment each such count. You can hopefully see that because these hashes
+could have collisions, two items might map to the same count for any given row
+(hash). Thus, what we’ll do to minimize this error is to take the minimum of
+the D counts on a lookup. We will also size our matrix sufficiently to minimize
+such collisions. The CM Sketch is an example of a <em>probabalistic data
+structure</em>. <a href="https://en.wikipedia.org/wiki/Bloom_filter">Bloom filters</a> are
+another one commonly used in systems.</p>
+<h2 id="notes-on-methods">Notes on methods</h2>
+<h3 id="trace-based-evaluation">Trace-based Evaluation</h3>
+<p>Typically we can’t run experimental prototypes on production systems. Sometimes companies (like Twitter) will
+release <em>traces</em> (usually with proprietary and user info obfuscated) that allow researchers in the community
+to understand the behavior of real systems.</p>
+<h3 id="evaluation-methods">Evaluation Methods</h3>
+<p>The segcache paper employed two types of evaluation methods you’ll commonly
+see. An <strong>ablation study</strong> is something you’ll see when a proposed system or
+method has several components, each of which may contribute to the figure of
+merit (e.g., lowering performance). In such cases, readers will want to know
+<em>which</em> component has the largest impact. That can be determined by enabling or
+disabling the components (or optimizations) selectively. In general,
+a perfectly complete ablation study for $n$ components would have $2^n$
+experimental configurations, so you’ll rarely see such a study for systems with
+components greater than, say, n=2. Instead, what you’ll often see is components
+successively applied (system with no optimizations, system with opt. 1 only,
+with opt. 1 and 2, with opt. 1, 2, and 3; and so on).</p>
+<p>A <strong>sensitivity study</strong> is similar in spirit, in that we want to see the degree
+to which design choices impact the system performance (or other metric). This
+type of study is used when there is some parameter in the design, where the
+value of the parameter could affect the evaluation metric. In such cases we can
+“vary the knob” for this parameter and see how the system responds. As an
+example, in a consensus protocol we might vary the leader timeout to see how it
+affects failure recovery times; in an OS we might vary the timer interrupt rate
+to see its impact on job throughput or performance interference.</p>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

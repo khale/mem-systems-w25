@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: WSP: Whole System Persistence</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="WSP: Whole System Persistence">
+<meta property="og:description"
+    content="Background
+We’ve historically viewed the memory hierarchy as volatile main memory and secondary persistent storage.  With the OS and programs executing directly form main memory, the secondary storage is viewed as a final resting place for persistency of data (and sometimes for additional memory through swapping).  With this primary-volatile, secondary-non-volatile model in mind, advancements have been made over decades in how operating systems and applications use storage, from filesystems to databases supporting transactional storage.
+But if all of main memory becomes inherently non-volatile then many of these past conventions get disrupted - having the program itself and the data it is operating on directly persist across power loss and multiple boots presents its own set of opportunities and numerous new challenges as well.  The Whole System Persistence paper examines a solution built on non-volatile main memory.
+Overview
+Problem Statement
+Many modern Internet services are built around memory-based key-value stores for speed.  When a server hosting one of these in-memory databases must be rebooted, it can take a significant amount of time and&#x2F;or a significant load on secondary storage devices to reload data from secondary storage to main memory.  An example cited in the paper was an outage from Facebook in 2010 which suffered 2.5 hours of downtime due while in-memory cache servers reloaded data.  If this secondary storage bottleneck could be eliminated it could substantially improve the time to recovery.
+The paper states that previous solutions like persistent buffer caches, which use block-based&#x2F;filesystem storage as well as persistent heap-based solutions require state to be duplicated between memory and storage and also argues that it effectively “doubles the memory footprint” of these applications.  (But read below, for a critical analysis of this statement.)
+Whole-System Persistence (WSP)
+The Whole-System Persistence design uses non-volatile NVDIMM memory to retain all DRAM state across failures, effectively converting a failure into a suspend&#x2F;resume event.  No changes are required to applications, although performance optimizations may be desirable.">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>WSP: Whole System Persistence</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Rabecka Moffit (leader),
+      
+        Benjamin Knutson (scribe),
+      
+        Eugene Cohen (blogger),
+      
+        Nanda Velugoti,
+      
+        David Luo
+      
+      <span>
+    
+    <time datetime="2025-02-24">
+      February 24, 2025
+    </time>
+  </p>
+  <h1 id="background">Background</h1>
+<p>We’ve historically viewed the memory hierarchy as volatile main memory and secondary persistent storage.  With the OS and programs executing directly form main memory, the secondary storage is viewed as a final resting place for persistency of data (and sometimes for additional memory through swapping).  With this primary-volatile, secondary-non-volatile model in mind, advancements have been made over decades in how operating systems and applications use storage, from filesystems to databases supporting transactional storage.</p>
+<p>But if all of main memory becomes inherently non-volatile then many of these past conventions get disrupted - having the program itself and the data it is operating on directly persist across power loss and multiple boots presents its own set of opportunities and numerous new challenges as well.  The Whole System Persistence paper examines a solution built on non-volatile main memory.</p>
+<h1 id="overview">Overview</h1>
+<h2 id="problem-statement">Problem Statement</h2>
+<p>Many modern Internet services are built around memory-based key-value stores for speed.  When a server hosting one of these in-memory databases must be rebooted, it can take a significant amount of time and/or a significant load on secondary storage devices to reload data from secondary storage to main memory.  An example cited in the paper was an outage from Facebook in 2010 which suffered 2.5 hours of downtime due while in-memory cache servers reloaded data.  If this secondary storage bottleneck could be eliminated it could substantially improve the time to recovery.</p>
+<p>The paper states that previous solutions like persistent buffer caches, which use block-based/filesystem storage as well as persistent heap-based solutions require state to be duplicated between memory and storage and also argues that it effectively “doubles the memory footprint” of these applications.  (But read below, for a critical analysis of this statement.)</p>
+<h2 id="whole-system-persistence-wsp">Whole-System Persistence (WSP)</h2>
+<p>The Whole-System Persistence design uses non-volatile NVDIMM memory to retain <em>all</em> DRAM state across failures, effectively converting a failure into a suspend/resume event.  No changes are required to applications, although performance optimizations may be desirable.</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/wsp/WSP_Diagram.png" alt="WSP System Diagram" /></p>
+<p>In this diagram we see the NVDIMM, which contains DDR DRAM and NAND flash and can autonomously transfer data from DRAM to NAND on command.  For the purposes of saving state at power loss, saving DRAM to NAND Flash alone is not sufficient.  The processor (and in some architectures the chipset) contains caches which must be flushed.  And to preserve program state so we can resume at the next Program Counter value without restarting the processor register context must be saved as well, in much the same manner as a thread context switch.  So at power loss there must be saving of processor state (of all cores), flushing of caches and then finally instructing the NVDIMM to transfer DRAM to Flash.</p>
+<h3 id="save-and-restore-flow">Save and Restore Flow</h3>
+<p>To ensure a complete system state save there must be sufficient energy available to support continuing to execute for the processor state-save handling as well as from the DRAM-&gt;NAND Flash transfer.  This energy would be supplied through capacitors, either auxiliary capacitors to provide non-volatility or by leveraging the bulk capacitance in the system power supply.  (See criticism below on the power supply capacitance characterization work however.)</p>
+<p>What is the best way to preserve all of main memory on power loss?  The paper characterized the device state transition time to go to D3, the device state used for suspend-to-ram (ACPI S3) and suspend-to-disk (ACPI S4).  They show that on their two testbed systems that these transitions do not meet the time requirement for sufficient “residual energy”:</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/wsp/WSP_device_state_save_graph.png" alt="WSP Device State Save Chart" /></p>
+<p>Instead the solution was to rely on an optimized suspend path that saved processor state but did not involve device drivers.  (The paper did not address how device drivers were expected to recover from these conditions as their hardware state is reset.  This could be a serious limitation for applying WSP to existing operating systems.)</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/wsp/WSP_save_restore.png" alt="WSP Save-Restore Diagram" /></p>
+<h2 id="nvram-programming-models-block-based-persistent-heap-versus-whole-system">NVRAM Programming Models: Block-Based, Persistent Heap versus Whole-System</h2>
+<table><thead><tr><th>Persistence Model</th><th>Pros</th><th>Cons</th></tr></thead><tbody>
+<tr><td>Block-Based</td><td>Works with existing storage models</td><td>Log/journal for reliability, slow recovery</td></tr>
+<tr><td>Persistent Heaps</td><td>In-memory updates, faster than block-based</td><td>Non-transparent for app, requires transactional updates</td></tr>
+<tr><td>Whole System Persistence</td><td>Instant recovery, transparent to apps*</td><td>Requires system-wide NVRAM more expensive (today)</td></tr>
+</tbody></table>
+<hr />
+<p><code>*</code> but if apps already use other techniques then they still need to be modified!</p>
+<h3 id="block-based-serialize-data-and-write-to-a-file-or-database">Block-based: serialize data and write to a file or database</h3>
+<p>Application must convert data to the storage format on each update and back again on recovery.  Additional application overhead is implied by block storage.</p>
+<h3 id="persistent-heaps-use-a-transactional-api-to-update-persistent-objects">Persistent heaps: use a transactional API to update persistent objects</h3>
+<p>Some objects are placed in a persistent heap and use specialized APIs to ensure consistency.  These APIs implement a transaction model ensuring an all-or-nothing update model implying a log-structured implementation.  The paper states that the flush-on-commit methodology required by persistent heap implementations incur significant runtime overheads.</p>
+<h3 id="whole-system-all-objects-are-in-memory-all-state-restored-transparently">Whole system: all objects are in-memory, all state restored transparently</h3>
+<p>All application memory is non-volatile.  Only transient state of the execution must be flushed to memory.  The paper says this is better for legacy applications which are not written for separation of persistent and volatile state.</p>
+<p>The paper states that persistent heaps with transactional characteristics are inherently worse than whole-system persistency and if necessary using transactional mechanisms where needed to achieve recovery goals.  The difference is that the transactional API is not imposed everywhere with whole-system persistence.</p>
+<p>The paper proposes adopting a flush-on-fail to capture transient processor and cache state only during failures intead of a flush-on-commit method used to write state to persistent storage during operation.  The idea is that the overhead of flushing data to secondary storage can be eliminated.  (But see criticism below about the detectability of all failures.)</p>
+<h1 id="wsp-performance-results">WSP Performance Results</h1>
+<p>The WSP paper evaluated the performance changes resulting from adopting flush-on-fail instead of flush-on-commit in two workloads.</p>
+<p>One workload is based on OpenLDAP which inserts 100,000 random entries into a directory, comparing the Mnemosyne NV-heap solution which employs flush-on-commit versus WSP which employs flush-on-fail.  For the purposes of WSP in this context, the flushing – transational instrumentation and logging – is simply removed.  As expected there is a substantial uplift in performance for WSP.  (Is this a realistic modification?  Would in-memory database be able to recover under all interruption scenarios after the outright removal of these layers?  It’s unclear.)</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/wsp/WSP_update_throughput.png" alt="WSP Update Throughput Table" /></p>
+<p>The second workload is a hash table benchmark using a pre-populated table of 100,000 entries with 1,000,000 random operations applied to it, either a key lookup or update (insert/delete).  Multiple configurations were tested to separate out the effects of Software Transactional Memory (STM - the default Mnemosyne config), Undo-Logging (UL, an alternative approach in lieu of STM) and the flush-on-fail which elides both methods:</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/wsp/WSP_hash_perf.png" alt="WSP Hash Table Performance Figure" /></p>
+<p>Overall we see the WSP FoF is 6-13x faster than the default FoC+STM configuration.  In addition to the speedups we expect by removing STM and UL, we also observe that WSP even with STM or UL is substantially faster for writing data so even if transactional methods are retained the persistency of main memory still confers a great benefit.</p>
+<h1 id="analysis">Analysis</h1>
+<h2 id="thoughts-on-transient-power-loss">Thoughts on Transient Power Loss</h2>
+<p>Intro says saving transient state takes less than 5ms across a range of platforms and says power supplies provide 10-300ms of uptime.  A production system will need a highly deterministic power delivery system so the power usage of the system and capacities of power supply must be carefully scrutinized and characterized.  This become more difficult with expansion - for example a high power consumption coherent CXL device may consume enough power that the transient uptime requirement is violated.</p>
+<p>Need to be careful that all components retain their ability to operate during the transient condition.  Imagine a multi-rack interconnect that participates in a hardware coherency protocol and one rack loses power before the other.  What is necessary to be able to complete the necessary flushes to persistent memory under these complex topologies?</p>
+<h3 id="synchronizing-device-state-on-recovery">Synchronizing Device State on Recovery</h3>
+<p>The authors considered using the ACPI-defined suspend-to-RAM model for saving and restoring device state during these transactions but the save significantly exceeded the residual energy window.  (Aside: The S3 model is intended for client systems where latencies of multiple seconds to transition may be considered acceptable so it’s not surprising that this is ill-suited.). They suggest an approach where there is no save phase of for the devices and instead deal with the mess on the way back.</p>
+<p>The authors state that a virtualization environment could resolve this as the VM paradigm already supports the suspension and resumption of VM guests.  The hypervisor / host OS could be booted cold and then VMs restored from their persistent state.  This approach leverages the device driver model and recovery of the hypervisor drivers is nothing more than cold boot.  This still amounts to an effective surprise-suspension of a VM guest but the limited device drivers in that model make the recovery problem more manageable.  This approach was not yet implemented at the time of writing.</p>
+<h1 id="strengths-and-weaknesses">Strengths and Weaknesses</h1>
+<p>Paper says that traditional block storage techniques store data in two locations (RAM and disk) and hence “doubles the application’s memory footprint”.  This is a bit unfair as the NVDIMM also doubles the memory footprint across a DRAM and Flash, the difference being that both memories reside on the same device instead of on different ones.  And from a price perspective the more specialized NVDIMM may be cost prohibitive compared to commodity RAM and storage devices.  Will the cost increase of NVDIMMs justify the benefits of persistence versus storage-backed schemes?</p>
+<p>The paper spent a lot of effort characterizing power supplies examining residual energy on power loss.  But the paper fails to realize that residual energy is not a design goal of power supplies on commodity devices, in fact in some cases minimizing residual energy is a goal to ensure safe component replacement.  (Imagine the electrical issues that may arise if your motherboard power supplies remained energized for a couple minutes after being switched off while you were swapping DIMMs or PCIe cards!)</p>
+<p>How is recovery from arbitrary interruption handled?  Is the application expected to resume at the next Program Counter value as if nothing had happened?  As we know from advanced power-management schemes this is quite difficult in practice as the state of external hardware and systems must be re-synchronized.  How realistic is this for applications that may have shared state with HW devices (accelerators, storage and networking)?  The paper implies that applications are inherently prepared to handle this kind of transition but there is not data to support this.</p>
+<p>An over-arching assumption is that the platform is able to detect these interruptions and trigger the flushing and persistent storage write.  How realistic is this?  We know that systems can hang, operating systems and even firmware can crash/panic.  Reliable server systems have had FMEA studies done already - how well does the Whole System Persistence stand up to the variety of failure modes we can imagine for a server?</p>
+<p>What happens if the application crashes and the crash state is persistent?  How does one recover from this?  The paper states “In our model, NVRAM is the first but not the last resort for recovery after a crash failure. Recovery from a back-end storage layer such as a file system or database will always be necessary in some cases, e.g., if an entire server fails.” but this implies that the back-end storage will still need to be written.  Please enlighten us with how we can accomplish this with whole-system persistence in place!</p>
+<ul>
+<li>Step 11 checks image validity, how do they actually do this? They use a commit record, when flushing a state you stamp that record with a completion stamp when it’s done so you know what has been completed. You boot the computer if there is a commit record if not then you did not make it in time and then you crash.</li>
+</ul>
+<h2 id="other-questions-and-comments-from-class-discussion">Other Questions and Comments from Class Discussion</h2>
+<ul>
+<li>
+<p>This paper used faults of power supplies as an expectation (residual power supply energy), if the capacitor fails then there won’t be residual power to use.  This points out the broader issue that the paper is focused on a single failure mode only.</p>
+</li>
+<li>
+<p>They say that the recovery time is instant but we know NAND flash takes time to write and to read back.  The paper does not characterize these times and these will create a bound on recovery time.</p>
+</li>
+</ul>
+<h3 id="virtualization-s-role-in-wsp">Virtualization’s Role in WSP</h3>
+<ul>
+<li>
+<p>Virtualization may help solve the device state problem.  For guests using virtualized devices (e.g. virtio) the state of these IO interfaces are held in memory itself (e.g. virtio ring buffers) and will be saved and restored with the rest of memory. But modern techniques that expose host devices directly the guest, like PCIe pass-through of a GPU, will still have the device save-restore problem.</p>
+</li>
+<li>
+<p>Would checkpoint restart work here? You periodically dump a checkpoint and then you have to start from the latest checkpoint. This system is for a processors most up to date state being saved rather than a close-by restart</p>
+</li>
+</ul>
+<h3 id="practical-considerations">Practical Considerations</h3>
+<ul>
+<li>
+<p>If my application is based on time, it’s about to do something based on time and it fails and a restore happens what happens if the shutdown is for a long time. What happens to the state of a program that cares about time? How does the program that gets rebooted know how much time has passed?</p>
+</li>
+<li>
+<p>How do you determine what memory is important and what memory is not important, how do you sort volatile memory and nonvolatile memory in this system?</p>
+</li>
+<li>
+<p>How would things like OS kernel or application updates work?  What does it mean to reboot a system for updating or crash recovery if main memory is the primary point of persistence?  There is a lot more operating systems work to do to address these issues.</p>
+</li>
+<li>
+<p>What state is your memory in if it’s failed and you reboot?  What do you recover/reload from if the whole point is to sever ties to secondary storage?</p>
+</li>
+<li>
+<p>There are security concerns since someone could just take your memory and plug it into a different computer and read it.</p>
+</li>
+</ul>
+<h2 id="final-thoughts">Final Thoughts</h2>
+<p>The WSP paper poses an important question about the implications of main-memory non-volatility.  It shows distinct benefits from eliminating writes to secondary storage and the overhead associated with transactional updates but it leaves unanswered a bunch of new questions around device driver impacts, reliability across failure modes, and implications for OS and application updates, providing ample opportunities for Systems researchers.</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/paper-updated.pdf</li>
+</ul>
+
+  <footer>
+    
+    <p>Rabecka Moffit is an electrical engineering student pursuing a M.Eng. and a B.S at Oregon State University who enjoys gravel biking, surfing, and baking.</p>
+
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

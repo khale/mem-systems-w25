@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Questions and Thoughts on nuKSM</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Questions and Thoughts on nuKSM">
+<meta property="og:description"
+    content="Introduction
+Recently, our group reviewed a very interesting article titled “nuKSM:
+NUMA-aware Memory De-duplication on Multi-socket Servers” by Akash Panda,
+Ashish Panwar, and Arkaprava Basu.  This blog post focuses on nuKSM, a proposed
+solution to Linux’s bad interaction with NUMA systems that deal with a lot of
+data, such as servers. This past week we as a group collectively looked over
+this paper and discussed it among ourselves, through this blog post I hope to
+record some of our findings and questions.
+Overview
+A quick table of notable terms:
+NUMA-non uniform memory access
+KSM-Kernel Same page Merging
+TPS-Transparent page sharing
+VM- Virtual machine
+NUMA systems have special configurations of hardware called NUMA nodes, these are small collections of processors, memory, and I&#x2F;O buses that are linked together in a NUMA architecture.">
+
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.css" integrity="sha384-zB1R0rpPzHqg7Kpt0Aljp8JPLqbXI3bhnPWROx27a9N0Ll6ZP/+DiW/UqRcLbRjq" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.js" integrity="sha384-y23I5Q6l+B6vatafAwxRu/0oK/79VlbSz7Q9aiSZUvyWYIYsd+qj+o24G5ZU2zJz" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/contrib/auto-render.min.js" integrity="sha384-kWPLUVMOks5AQFrykwIup5lo0m3iMkkHrD0uJ4H5cjeGihAutqP0yW0J6dpFiVkI" crossorigin="anonymous" onload="renderMathInElement(document.body, { delimiters: [ {left: '$$', right: '$$', display: true}, {left: '\\[', right: '\\]', display: true}, {left: '$', right: '$', display: false} ] });"></script>
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>Questions and Thoughts on nuKSM</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Eugene Cohen (leader),
+      
+        Rabecka Moffit (scribe),
+      
+        Benjamin Knutson (blogger),
+      
+        Nanda Velugoti,
+      
+        David Luo
+      
+      <span>
+    
+    <time datetime="2025-01-15">
+      January 15, 2025
+    </time>
+  </p>
+  <h2 id="introduction">Introduction</h2>
+<p>Recently, our group reviewed a very interesting article titled “nuKSM:
+NUMA-aware Memory De-duplication on Multi-socket Servers” by Akash Panda,
+Ashish Panwar, and Arkaprava Basu.  This blog post focuses on nuKSM, a proposed
+solution to Linux’s bad interaction with NUMA systems that deal with a lot of
+data, such as servers. This past week we as a group collectively looked over
+this paper and discussed it among ourselves, through this blog post I hope to
+record some of our findings and questions.</p>
+<h2 id="overview">Overview</h2>
+<p>A quick table of notable terms:
+NUMA-non uniform memory access
+KSM-Kernel Same page Merging
+TPS-Transparent page sharing
+VM- Virtual machine</p>
+<p>NUMA systems have special configurations of hardware called NUMA nodes, these are small collections of processors, memory, and I/O buses that are linked together in a NUMA architecture.</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/nuksm/numa.PNG" alt="NUMA Diagram" /></p>
+<h2 id="nuksm-s-purpose">nuKSM’s purpose</h2>
+<p>nuKSM is meant to fix many of the problems KSM has been known to have over the
+years, it accounts for priority when deciding which pages to delete, it changes
+the way pages are structured to increase de-duplication speeds, and it makes
+KSM work with NUMA in the first place.</p>
+<h2 id="discussion">Discussion</h2>
+<p>Me and my classmates began the discussion listening to our presenter Eugene reading off a powerpoint included in the sources of this blog. After we finished reading the presentation together we began an open discussion dissecting the paper together. I would like to highlight a few interesting questions we had after reading, if any of these questions speaks to you please feel free to look more into it or reach out for further discussion.
+Could nuKSM have positive effects on GPU memory storage techniques?
+I asked this question to Euguene due to reading the acronym CUP as GPU, even though it was a misunderstanding it led to an interesting tangent where we discussed if an implementation like nuKSM could benefit a piece of hardware like a graphics card. Both use memory and move large amounts of data around but they do it for different purposes and in different ways. We ended the discussion on that topic by noting that it might be beneficial for GPU developers to look at the techniques of nuKSM but it won’t be directly applicable to their work
+How fast is good enough for deduplication?
+One interesting thing noted in the paper is the redesign of the page reclamation algorithm. This algorithm is used to assign a since value for the priority of the specific process using a page.
+<img src="https://khale.github.io/mem-systems-w25/blog/nuksm/formula.PNG" alt="nuShare Formula" /></p>
+<p>This new algorithm is stated to increase fairness of priority, in addition the
+page structure which used to follow a tree design was changed to a forest
+design. This forest makes for faster page duplication so that more pages can be
+deduplicated before new data comes in to overwhelm the system. The question
+remaining is how big of a burst of data is required to cause a system failure.
+nuKSM github mystery?</p>
+<p>According to our presenter Eugene when he began researching this paper he found the nuKSM github page for the open source version of the project. The page is still intake and folder names are present however upon trying to download anything from the page you will find a lot of empty files and links. Since the project is only 4 years old and from the Indian Institute of Science you would think the resources would still be available. The kernel patch set is currently lost to time and unavailable, they do have their own benchmarks for the kernel but it is untestable. This is even more strange when you consider that most universities require papers and their respective materials to be preserved in databases like ACM.</p>
+<p>Are duplicate pages acceptable?</p>
+<p>A small discussion took place involving the point that the original graphs
+presented in the paper did not take into account the possibility of duplicate
+pages, i.e. the practice of not deleting either page and leaving a copy with
+both VM’s. This is a scenario that would only occur in rare cases where the
+priority rate is split evenly between some number of VM’s by nearly equal
+amounts. The argument was that it would be more computationally cost effective
+to just sacrifice some memory to save a lot of time accessing a different place
+in memory, this is especially true if we consider nuKSM’s implementation of
+forested pages where the data we have to fetch is deep inside the page.</p>
+<h2 id="final-thoughts">Final Thoughts</h2>
+<p>nuKSM makes two important changes to vanilla KSM, it makes NUMA aware, and it
+changes the way it creates and manages pages. While this implementation does
+increase productivity and fix issues for NUMA systems using linux there are
+still many more chances for growth, there is a recently published paper
+discussing adaptive memory deduplication linked below that might be the next
+step in this line of thought. This paper in fact references nuKSM trying to
+harmonize cache access with page access counters in a way similar to the page
+relocation algorithm.</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>https://apanwariisc.github.io/publications/pact-2021-nuksm/nuksm-pact21-slides.pdf</li>
+<li>https://github.com/csl-iisc/nuKSM-pact21-artifact</li>
+<li>https://ieeexplore.ieee.org/document/10466365</li>
+<li>nuKSM: NUMA-aware Memory De-duplication on Multi-socket Servers</li>
+<li>Akash Panda*, Ashish Panwar, Arkaprava Basu</li>
+</ul>
+
+  <footer>
+    
+    <p>Eugene Cohen is pursuing a Master’s degree in Computer Science having worked in industry for a quarter century.</p>
+
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: The Multikernel: Ambitious OS Architecture Ahead of Its Time</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The Multikernel: Ambitious OS Architecture Ahead of Its Time">
+<meta property="og:description"
+    content="Introduction
+This paper describes a different paradigm for constructing an OS relying on message-passing instead of shared memory for organizing OS data structures across multiple cores.  Mainstream operating system kernels predominantly make use of shared memory data structures - global information used for the core OS, device drivers or major subsystems that use some form of mutual exclusion to protect access.  This paper presents an alternative approach: data structures are not shared but instead cross-core message-based communication was used instead.
+The paper makes a case for the diversity of hardware architectures making it increasingly difficult for an OS to adapt to these differences.  Some of these claims have not aged particularly well from 2009 as seen from today as great improvements have been made in describing to OSes hardware differences so it can adapt - but the core concepts in the paper are still relevant today.
+The Shared Memory Scaling Problem
+The architecture of the rack&#x2F;board&#x2F;socket&#x2F;die&#x2F;core hierarchy and the corresponding interconnect+cache topology can have a profound impact on the performance of the OS and applications.  The shared kernel data structure approach is exposed to these performance effects as we see from the shared memory RPC benchmarks which show latency increasing as number of cores increase but also as the size of the messages increase (from 1-8 cachelines):">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>The Multikernel: Ambitious OS Architecture Ahead of Its Time</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Rabecka Moffit (leader),
+      
+        David Luo (scribe),
+      
+        Eugene Cohen (blogger),
+      
+        Nanda Velugoti,
+      
+        Benjamin Knutson
+      
+      <span>
+    
+    <time datetime="2025-01-27">
+      January 27, 2025
+    </time>
+  </p>
+  <h2 id="introduction">Introduction</h2>
+<p>This paper describes a different paradigm for constructing an OS relying on message-passing instead of shared memory for organizing OS data structures across multiple cores.  Mainstream operating system kernels predominantly make use of shared memory data structures - global information used for the core OS, device drivers or major subsystems that use some form of mutual exclusion to protect access.  This paper presents an alternative approach: data structures are not shared but instead cross-core message-based communication was used instead.</p>
+<p>The paper makes a case for the diversity of hardware architectures making it increasingly difficult for an OS to adapt to these differences.  Some of these claims have not aged particularly well from 2009 as seen from today as great improvements have been made in describing to OSes hardware differences so it can adapt - but the core concepts in the paper are still relevant today.</p>
+<h2 id="the-shared-memory-scaling-problem">The Shared Memory Scaling Problem</h2>
+<p>The architecture of the rack/board/socket/die/core hierarchy and the corresponding interconnect+cache topology can have a profound impact on the performance of the OS and applications.  The shared kernel data structure approach is exposed to these performance effects as we see from the shared memory RPC benchmarks which show latency increasing as number of cores increase but also as the size of the messages increase (from 1-8 cachelines):</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/barrelfish/rpc_shm.PNG" alt="RPC Shared Memory Results" /></p>
+<h2 id="message-passing-to-the-rescue">Message-Passing to the Rescue?</h2>
+<p>The solution used in the Multikernel paper and implemented in the Barrelfish OS passes messages instead, so rather than the kernel data structures being inherently shared, instead messages are sent to request that one responsible entity carry out the requested action:</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/barrelfish/message_passing.PNG" alt="Message Passing Diagram" /></p>
+<p>and an interesting result occurs, showing improved scaling for core count and message sizes versus shared memory:</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/barrelfish/rpc_message_shm.PNG" alt="RPC Messaging-Passing and Shared Memory Results" /></p>
+<p>The graph above is from a 4-socket AMD server platform circa 2009.  These X86 systems have cache coherency protocols active but the effects are only observed in the RPC implementation itself as the Barrelfish OS does not share other data.</p>
+<p>The authors present a comparison of a TLB shootdown (Unmap) flow across Windows, Linux and Barrelfish, the first two using shared memory kernel data structures:</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/barrelfish/unmap_latency.PNG" alt="Unmap Latencies Across OSes" /></p>
+<h2 id="rpc-shared-memory-optimization">RPC Shared Memory Optimization</h2>
+<p>Interestingly, even though the paper set out to define a “no shared data” OS architecture to enable it to be immune to hardware interconnect and cache coherency implementation differences, the practical effects of the RPC system on the X86 server hardware showed that RPC performance was directly impacted by the hardware implementation.  Specifically, the shared data (RPC message buffer) data flows from the sender to the receiver had a performance impact requiring the RPC layer to be adapted:</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/barrelfish/multicast.PNG" alt="Multicast RPC Diagram" /></p>
+<p>We see that this optimization has a profound impact as the number of cores increases:</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/barrelfish/rpc_optimization.PNG" alt="RPC Optimziation Results" /></p>
+<p>Which perhaps goes to show that as long as any shared memory is involved that NUMA is ready to bite you.</p>
+<p>Given that the experimental setup still used shared memory for RPC itself and we know the hardware implementation has a measurable impact on performance, it would be interesting to consider using modern (2025) hardware to repeat some of these experiments including RPC mechanisms that did not rely on shared memory at all.</p>
+<h2 id="final-thoughts">Final Thoughts</h2>
+<p>Think about the kind of experiments we could set up today to explore the tradeoffs between shared memory and message-passing approaches.  What effects would we see running across more diverse topologies including multiple dies in a package ranging to multiple servers across racks?  Could adjusting interconnect and cache coherency policies fundamentally change the performance characteristics of operating system data sharing?  Is there some hardware assist that would be optimal for OS message passing?  Would an adaptive algorithm that chooses the best of both shared memory and message passing be feasible?</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>https://www.sigops.org/s/conferences/sosp/2009/papers/baumann-sosp09.pdf</li>
+<li>https://www.sigops.org/s/conferences/sosp/2009/slides/baumann-slides-sosp09.pdf</li>
+<li>https://www.youtube.com/watch?v=fZt1LILFyXY</li>
+<li>https://barrelfish.org/</li>
+<li>https://github.com/BarrelfishOS/barrelfish</li>
+</ul>
+
+  <footer>
+    
+    <p>Rabecka Moffit is an electrical engineering student pursuing a M.Eng. and a B.S at Oregon State University who enjoys gravel biking, surfing, and baking.</p>
+
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

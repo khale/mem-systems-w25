@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Persistent Memory</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.css" integrity="sha384-zB1R0rpPzHqg7Kpt0Aljp8JPLqbXI3bhnPWROx27a9N0Ll6ZP/+DiW/UqRcLbRjq" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.js" integrity="sha384-y23I5Q6l+B6vatafAwxRu/0oK/79VlbSz7Q9aiSZUvyWYIYsd+qj+o24G5ZU2zJz" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/contrib/auto-render.min.js" integrity="sha384-kWPLUVMOks5AQFrykwIup5lo0m3iMkkHrD0uJ4H5cjeGihAutqP0yW0J6dpFiVkI" crossorigin="anonymous" onload="renderMathInElement(document.body, { delimiters: [ {left: '$$', right: '$$', display: true}, {left: '\\[', right: '\\]', display: true}, {left: '$', right: '$', display: false} ] });"></script>
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 13:
+  Persistent Memory
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/54" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;pmem.io" class="icon reading">* PMEM background</a>
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;docs.kernel.org&#x2F;filesystems&#x2F;dax.html" class="icon reading">* Linux DAX</a>
+    
+    <br>Direct Access for Files in Linux
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;pages.cs.wisc.edu&#x2F;~remzi&#x2F;OSTEP&#x2F;file-journaling.pdf" class="icon reading">^ Crash Consistency Basics</a>
+    
+    <br>From OSTEP book
+    
+  </li>
+  
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel comfortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<p>The slides from lecture can be found on Canvas.</p>
+<h2 id="pm-basics">PM basics</h2>
+<p>Usually, your RAM is volatile, meaning that if the power goes off, your data is gone. We’ve had persistent storage for a long time (magnetic core, tape, spinning drives, SSDs, and so on). Persistent <em>memory</em> is especially interesting, because we’re essentially exposing storage via a memory interface. When we say that a PM device is byte-addressable, we are really talking about how we interact with it using loads and stores. This is in contrast to the typical storage interface, which is block-oriented.</p>
+<h3 id="differences">Differences</h3>
+<p>Of course, we cannot simply replace all of DRAM with PMEM. This is because their performance characteristics are different. PM devices tend to be a bit slower, but much more dense than DRAM. You can think of PM as on the spectrum between DRAM and SSD. This suggests an intermediate storage layer, essentially deepening the memory hierarchy. How this interacts with the system is something we’ll discuss over the next two sessions.</p>
+<h2 id="other-topics-we-ll-discuss">Other topics we’ll discuss</h2>
+<ul>
+<li>Prior NVDIMM tech</li>
+<li>file system and crash consistency basics</li>
+<li>Abstraction via memory-mapped files</li>
+<li>Crash consistency basics and why the ADR matters</li>
+</ul>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

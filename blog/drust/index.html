@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: DRust: Language-Guided Distributed Shared Memory with Fine Granularity, Full Transparency, and Ultra Efficiency</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DRust: Language-Guided Distributed Shared Memory with Fine Granularity, Full Transparency, and Ultra Efficiency">
+<meta property="og:description"
+    content="Introduction
+The paper, DRust: Language-Guided Distributed Shared Memory with Fine Granularity, Full Transparency, and Ultra Efficiency, explores a novel approach that takes Rust’s ownership model and uses it to optimize the performance of a distributed shared memory (DSM) system. Integrating the ownership semantics into the coherence protocol, DRust eliminates unnecessary overhead from synchronization, allowing it to outperform current existing DSM systems.
+Traditional DSM systems face challenges such as synchronization overhead and the complexity of maintaining memory coherency and consistency across distributed nodes. DRust addresses these challenges with Rust’s memory safety features, and incorporates them into the DSM runtime. It ensures fine-grained memory coherence without needing to manually synchronize everything. This minimizes network traffic and bottlenecks stemming from synchronization, leading to a more efficient and scalable solution.
+Overview
+DRust enhances distributed shared memory (DSM) systems by incorporating Rust’s ownership model, which guarantees memory safety and consistency. Rust’s core features, such as single-writer, multiple-reader (SWMR) semantics, allow DRust to track ownership, enabling automatic, fine-grained memory coherence without requiring explicit synchronization, reducing network overhead and bottlenecks commonly seen in traditional DSM systems.
+This system replaces the standard Rust pointers with distributed-aware structures which can track ownership and memory access across nodes. This approach allows objects to migrate based on ownership transfers, minimizing cache invalidations and reducing unnecessary network fetches. By integrating these features, DRust can manage memory coherence across distributed systems without additional synchronization costs, reducing communication traffic and accelerating memory access.
+DRust further optimizes performance by leveraging RDMA (Remote Direct Memory Access) for high-speed memory access between nodes. It also utilizes affinity-based scheduling to place threads close to the data they are working with, ensuring optimal data locality. This reduces the need for cross-node memory access, enhancing both scalability and performance. DRust integrates seamlessly with existing Rust applications, requiring only minimal modifications to the codebase, which allows developers to efficiently scale their applications to distributed environments with minimal overhead.
+Results
+In performance evaluations, DRust outperforms existing DSM systems, including GAM and Grappa, with significant speedups. Notably:">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>DRust: Language-Guided Distributed Shared Memory with Fine Granularity, Full Transparency, and Ultra Efficiency</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Nanda Velugoti (leader),
+      
+        David Luo (blogger),
+      
+        Rabecka Moffit (Scribe),
+      
+        Eugene Cohen,
+      
+        Benjamin Knutson
+      
+      <span>
+    
+    <time datetime="2025-02-17">
+      February 17, 2025
+    </time>
+  </p>
+  <h1 id="introduction">Introduction</h1>
+<p>The paper, <em>DRust: Language-Guided Distributed Shared Memory with Fine Granularity, Full Transparency, and Ultra Efficiency</em>, explores a novel approach that takes Rust’s ownership model and uses it to optimize the performance of a distributed shared memory (DSM) system. Integrating the ownership semantics into the coherence protocol, DRust eliminates unnecessary overhead from synchronization, allowing it to outperform current existing DSM systems.</p>
+<p>Traditional DSM systems face challenges such as synchronization overhead and the complexity of maintaining memory coherency and consistency across distributed nodes. DRust addresses these challenges with Rust’s memory safety features, and incorporates them into the DSM runtime. It ensures fine-grained memory coherence without needing to manually synchronize everything. This minimizes network traffic and bottlenecks stemming from synchronization, leading to a more efficient and scalable solution.</p>
+<h1 id="overview">Overview</h1>
+<p>DRust enhances distributed shared memory (DSM) systems by incorporating Rust’s ownership model, which guarantees memory safety and consistency. Rust’s core features, such as single-writer, multiple-reader (SWMR) semantics, allow DRust to track ownership, enabling automatic, fine-grained memory coherence without requiring explicit synchronization, reducing network overhead and bottlenecks commonly seen in traditional DSM systems.</p>
+<p>This system replaces the standard Rust pointers with distributed-aware structures which can track ownership and memory access across nodes. This approach allows objects to migrate based on ownership transfers, minimizing cache invalidations and reducing unnecessary network fetches. By integrating these features, DRust can manage memory coherence across distributed systems without additional synchronization costs, reducing communication traffic and accelerating memory access.</p>
+<p>DRust further optimizes performance by leveraging RDMA (Remote Direct Memory Access) for high-speed memory access between nodes. It also utilizes affinity-based scheduling to place threads close to the data they are working with, ensuring optimal data locality. This reduces the need for cross-node memory access, enhancing both scalability and performance. DRust integrates seamlessly with existing Rust applications, requiring only minimal modifications to the codebase, which allows developers to efficiently scale their applications to distributed environments with minimal overhead.</p>
+<h1 id="results">Results</h1>
+<p>In performance evaluations, DRust outperforms existing DSM systems, including GAM and Grappa, with significant speedups. Notably:</p>
+<ul>
+<li>DRust achieves a <strong>1.33x to 2.64x</strong> speedup over GAM.</li>
+<li>It shows <strong>2.53x to 29.16x</strong> speedup compared to Grappa.</li>
+<li>The system incurs only a <strong>2.42%</strong> slowdown compared to single-node execution, indicating minimal overhead.</li>
+</ul>
+<p>In real-world workload tests, DRust excels in areas such as DataFrame processing (e.g., Polars), where it achieves up to <strong>5.57x</strong> speedup over single-node execution. Social networking benchmarks (e.g., DeathStarBench) benefit from DRust’s ability to eliminate serialization overhead by passing references rather than data copies. For high-compute workloads like GEMM, DRust’s scheduling ensures effective scaling across nodes, minimizing communication bottlenecks.</p>
+<h1 id="discussion">Discussion</h1>
+<p><strong>Why do we need single write? Why is that invariant important?</strong></p>
+<ul>
+<li>Having a single write is important because it prevents multiple writes to the same data from happening. If there are multiple writes to the same data, an issue appears in the form of a question. <em>Who’s write are we going to take?</em> Having a single write allows the writes to be in some order so the information will gradually spread, but it also prevents conflicts and addition synchronization. Though if it’s just reading, everyone can have a copy because each copy will be the same, therefore there won’t be a conflict of which one is the “correct” one.</li>
+<li>If multiple writes were allowed, this would cause more overhead compared to single writes. With a language like Rust, programmers can rely on the language to handle synchronization, mapping, and other semantics, whereas if they’re using something like GAM, who enforces partial store order with asynchronous writes (significant overhead), it doesn’t map cleanly, leading to more overhead without single write enforcement</li>
+</ul>
+<p><strong>Can you explain runtime? Are startup files a part of the runtime system?</strong></p>
+<ul>
+<li>The concept of runtime was explore a little bit, with an explanation where on a system with only one server, Rust will take care of coherency, but on a system with multiple servers, someone else would have to provide that coherency. DRust’s runtime is essentially normal Rust but with a distributed server library. Further explanations explained how runtime is built into the system, comparing C code and the use of the main function to clarify the role of runtime. Rust doesn’t natively support distributed systems, which is why you need a runtime component if using Rust in a distributed system.</li>
+<li>Embedded systems have a startup file that does a very similar thing. The startup file itself is a part of the runtime system, whereas a bootloader would not be as runtime is included in any file ran in a program.</li>
+</ul>
+<p><strong>Is it adaptable to different types of hardware?</strong></p>
+<ul>
+<li>Though the paper doesn’t talk a lot about hardware, DRust can be integrated into various types of hardware to manage coherency, assuming the hardware can support distributed shared memory (DSM). RMC is an example of hardware that does support DSM.</li>
+</ul>
+<p><strong>Can we reason where messaging will happen with a write?</strong></p>
+<ul>
+<li>Asynchronous requests involve a remote server deallocating the original object’s memory, which allows for more efficient memory management. Messaging occurs with mutable references, and optimizing those messages requires aligning the ownership and asynchronous processes. The memory ownership model is the same, meaning that fewer messages are required. Since only one owner has write access at a time, the model inherently limits the number of messages since only one mutable write can occur at a time. This allows the system to effectively scale with the coherence protocol.</li>
+<li>Showing the network traffic to demonstrate that there is reduced messaging could have been helpful, but it was noted that deallocation requests are asynchronous and don’t contribute to the overall cost.</li>
+</ul>
+<p><strong>How does the system handle ownership changes and synchronization?</strong></p>
+<ul>
+<li>Requiring a message to check if the data is stale, or ensuring ownership is valid, as this is managed by maintaining both the global and local addresses and the switching is based on the global access patterns. The server tree knows whenever a new allocation happens because when a write occurs, a synchronous message is sent to update the ownership.</li>
+<li>Ownership synchronization must happen first as read and write operations both depend on any ownership changes. Once ownership has updated, the read and write operations can proceed accordingly, ensuring consistency is maintained. During this process, no reads can occur, preventing accidentally reading garbage or outdated data.</li>
+<li>Unlike traditional systems, invalidation messages aren’t needed during a single write state because a global synchronization message is sent instead whenever a mutable value is taken. This further reduces overhead and simplifies coherence enforcement. Borrowing still requires synchronous communication which introduces some slowdown, leading to some overhead, but limited to about 2% from Rust to DRust with some optimizations. Additionally, if an object is updated within a single server, synchronization is not needed.</li>
+<li>In a typical DSM system, data is transferred at a granularity of a page, regardless of data size leading to IO amplification. IO amplification is when a storage device needs to perform a significantly larger amount of input/output (I/O) operations than what is requested by the user. This inefficiency appears due to sending the entire page regardless of how much actual data is on that page. DRust improves on this by allowing mutable state transitions without needing to send the entire page as it only sends the necessary object data. This reduces the network traffic as well as the storage overhead.  Additionally, if a write operation updates the entire object, an invalidation message could be sent without including the data.</li>
+<li>Ownership transfers during garbage collection could help prevent a cache from being backed up. It could also improve security and restrict third parties from accessing cached data, but this was not confirmed.</li>
+</ul>
+<h1 id="conclusion">Conclusion</h1>
+<p>DRust represents a breakthrough in the design of distributed shared memory systems, integrating Rust’s ownership model to provide fine-grained memory coherence with minimum synchronization overhead. Its ability to reduce network traffic, improve scalability, and optimize memory access without requiring major changes to existing codebases makes it a powerful tool for modern distributed computing.</p>
+<p>While there are some limitations, DRust’s performance across a wide range of benchmarks shows how much potential it has in revolutionizing DSM systems. With further improvements, it could become a fundamental piece for future distributed computing applications</p>
+<h1 id="references">References</h1>
+<ul>
+<li>Paper: <a href="https://www.usenix.org/system/files/osdi24-ma-haoran.pdf">https://www.usenix.org/system/files/osdi24-ma-haoran.pdf</a></li>
+<li>Slides: <a href="https://drive.google.com/file/d/1mw51FuJ3MR3hRSj8RUZ_3DmiPsyvcwF0/view?usp=sharing">https://drive.google.com/file/d/1mw51FuJ3MR3hRSj8RUZ_3DmiPsyvcwF0/view?usp=sharing</a></li>
+<li>Video: <a href="https://www.youtube.com/watch?v=19JN3Kg2yYo">https://www.youtube.com/watch?v=19JN3Kg2yYo</a></li>
+<li>DRust Full Coherence Protocol Details: <a href="https://arxiv.org/html/2406.02803v2#A2">https://arxiv.org/html/2406.02803v2#A2</a></li>
+</ul>
+
+  <footer>
+    
+    
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

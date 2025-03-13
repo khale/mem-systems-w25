@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: SimplePIM: A Software Framework for Productive and Efficient Processing-in-Memory</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="SimplePIM: A Software Framework for Productive and Efficient Processing-in-Memory">
+<meta property="og:description"
+    content="Introduction
+PIM stands for Processing-In-Memory and as the name suggests the idea here is that, instead of doing compute in CPU, it can be done in the DRAM by embedding a processing unit within it, this is usually referred to as DPU (DRAM Processing Unit) [1]. The obvious benefit of having such a mechanism is that, memory bound workloads avoid the DRAM-to-CPU (and vice versa) communication overhead. This is shown in many common workloads where offloading such memory bound compute to DPUs results in better throughput and overall performance [2].
+Design and Implementation
+SimplePIM is a software framework that provides a convenient userspace API that allows programmers to easily implement PIM features into their applications. SimplePIM does this by providing a set of PIM programming primitives for managing, communicating and processing data structures between host (CPU) and DPU.
+SimplePIM API">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>SimplePIM: A Software Framework for Productive and Efficient Processing-in-Memory</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Nanda Velugoti (leader, blogger),
+      
+        Benjamin Knutson (scribe),
+      
+        David Luo,
+      
+        Rabecka Moffit,
+      
+        Eugene Cohen
+      
+      <span>
+    
+    <time datetime="2025-03-10">
+      March 10, 2025
+    </time>
+  </p>
+  <h1 id="introduction">Introduction</h1>
+<p>PIM stands for Processing-In-Memory and as the name suggests the idea here is that, instead of doing compute in CPU, it can be done in the DRAM by embedding a processing unit within it, this is usually referred to as DPU (DRAM Processing Unit) [1]. The obvious benefit of having such a mechanism is that, memory bound workloads avoid the DRAM-to-CPU (and vice versa) communication overhead. This is shown in many common workloads where offloading such memory bound compute to DPUs results in better throughput and overall performance [2].</p>
+<h1 id="design-and-implementation">Design and Implementation</h1>
+<p>SimplePIM is a software framework that provides a convenient userspace API that allows programmers to easily implement PIM features into their applications. SimplePIM does this by providing a set of PIM programming primitives for managing, communicating and processing data structures between host (CPU) and DPU.</p>
+<h3 id="simplepim-api">SimplePIM API</h3>
+<ul>
+<li>Management Interface: <code>simple_pim_array_lookup()</code>, <code>simple_pim_array_register()</code>, <code>simple_pim_array_free()</code></li>
+<li>Communication Interface: <code>simple_pim_array_broadcast()</code>, <code>simple_pim_array_scatter()</code>, <code>simple_pim_array_gather()</code>, <code>simple_pim_array_allreduce()</code>, <code>simple_pim_array_allgather()</code></li>
+<li>Processing Interface: <code>simple_pim_create_handle()</code>, <code>simple_pim_array_map()</code>, <code>simple_pim_array_red()</code>, <code>simple_pim_array_zip()</code></li>
+</ul>
+<h3 id="optimizations">Optimizations</h3>
+<ul>
+<li>Strength reduction</li>
+<li>Loop unrolling</li>
+<li>Avoiding boundary checks</li>
+<li>Function inlining</li>
+<li>Adjustment of data transfer sizes</li>
+</ul>
+<h1 id="results">Results</h1>
+<p>SimplePIM results in, up to 83% reduction in lines of code and improves productivity up to 5.93x. Along with these improvements, SimplePIM speeds up workloads by 1.10x - 1.43x when compared to their hand-optimized implementations.</p>
+<h1 id="discussion">Discussion</h1>
+<ul>
+<li><strong>Why is PIM being explored more now?</strong> Things like graph analytics and computations that do not have a lot of cache access can benefit from this type of hardware</li>
+<li><strong>Do you know of any other companies that are making PIM other than UPMEM?</strong> Sk hinex and samsung, samsung is not generally purpose however.</li>
+<li><strong>Have you taken any functional programming courses?</strong> They might help with this paper due to the idea of arrays and maps</li>
+<li><strong>Do we know what a histogram calculation is?</strong> Counting the number of occurrences in a data set, if there are repeating entries it will tell you how many times those entries have repeated</li>
+<li>Strong scaling vs weak scaling: when you increase the number of cores or nodes that is strong scaling the program stays fixed, you end up dividing the problem over a number of ever increasing cores. weak scaling is meant to change the program, the nodes always have a fixed amount of work to do, the problem is growing as you scale up since each node always has the same amount of work to do.</li>
+<li>SimplePIM, is it compatible with the current versions of the Samsung PIM, not currently you would probably have to work to implement them</li>
+<li>Compare the performance to hand optimized code seems like a bit of a weakness but I’m not sure what else they would do. They point out it’s from a library, from nanda’s experience Yeah, they have to compare it to that code since they have nothing else to compare it to. <strong>What if they rigged the hand optimized code?</strong> hand optimized is quite a subjective term and is rather arbitrary.</li>
+<li>Lots of compiler papers from the 80’s was like this hand optimized code section since compilers were a lot worse back then</li>
+<li><strong>You are compensating for the fact that you have a strong processor(code optimizations slide), did they put the correct type of processor in the memory? Was this the correct compromise? Did they have enough space on the memory physically?</strong> We could implement caches into these to get rid of some of the issues. Not sure if they picked the best CPU</li>
+<li><strong>Why is this on the DRAM bus, would PCI/mem better for this type of work?</strong> That is a fair point, we can consider expanding the hardware to have interconnection and native floating point.</li>
+<li>If you talk to a computer architect, they would say this is programming near memory not in</li>
+<li>X86 architecture, DPU RISC-V so there is a 5-10% overhead just to ship the data between the two</li>
+<li><strong>Are they adjusting the runtime manually?</strong> We think they adjust them via the compiler to use large DMA transfer sizes when all the accessed data is going to be used. Otherwise manually</li>
+<li><strong>Do they talk about the hardware in this paper?</strong> There might be UPMEM in the paper,</li>
+<li><strong>What are the internals of the UPMEM engine?</strong> They don’t publish it</li>
+<li>I think there might be a point where GPU and PIM might merge, dont you eventually just approximate PIM? GPU and memory get so close to where we just use one to do the other. Would we ever want to do this or is there some law of physics where it makes it impossible?</li>
+<li>The new tesla supercomputer (dojo) might be interesting to look at</li>
+</ul>
+<h1 id="references">References</h1>
+<ol>
+<li><a href="https://arxiv.org/pdf/2012.03112">A Modern Primer on Processing-In-Memory</a></li>
+<li><a href="https://arxiv.org/abs/2105.03814">Benchmarking a New Paradigm: An Experimental Analysis of a Real Processing-in-Memory Architecture</a></li>
+<li>Paper: <a href="https://people.inf.ethz.ch/omutlu/pub/SimplePIM_pact23.pdf">https://people.inf.ethz.ch/omutlu/pub/SimplePIM_pact23.pdf</a></li>
+<li>Slides: <a href="https://events.safari.ethz.ch/micro-pim-tutorial/lib/exe/fetch.php?media=realpimtutorial-micro23-simplepim-juan-slides.pdf">https://events.safari.ethz.ch/micro-pim-tutorial/lib/exe/fetch.php?media=realpimtutorial-micro23-simplepim-juan-slides.pdf</a></li>
+</ol>
+
+  <footer>
+    
+    
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

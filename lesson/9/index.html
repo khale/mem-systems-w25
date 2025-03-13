@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Byzantine Fault Tolerance</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 9:
+  Byzantine Fault Tolerance
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/41" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;lamport.azurewebsites.net&#x2F;pubs&#x2F;byz.pdf" class="icon reading">* The Byzantine Generals Problem</a>
+    
+    <br>Lamport, 1982
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;pmg.csail.mit.edu&#x2F;papers&#x2F;osdi99.pdf" class="icon reading">* Practical Byzantine Fault Tolerance</a>
+    
+    <br>Castro and Liskov, OSDI &#x27;99
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;www.usenix.org&#x2F;legacy&#x2F;event&#x2F;nsdi09&#x2F;tech&#x2F;full_papers&#x2F;clement&#x2F;clement.pdf" class="icon reading">* Making Byzantine Fault Tolerant Systems Tolerate Byzantine Faults</a>
+    
+    <br>Clement, Wong, Alvisi, and Dahlin, NSDI &#x27;09
+    
+  </li>
+  
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel comfortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<p>The slides from lecture can be found on Canvas.</p>
+<h3 id="extending-system-models">Extending system models</h3>
+<p>In particular, we are worried about the Byzantine failure model, which is stronger than fail-stop or fail-recover.
+We talked briefly last time about the two generals problem and Byzantine generals. The latter is our focus today.
+Why do we need such a model? Primarily to be able to handle realities in the world:</p>
+<ul>
+<li>Falied nodes or processes may fail in arbitrary (or malicious) ways:
+<ul>
+<li>One of the nodes may be deploying an older version of the protocol, leading to weird behavior</li>
+<li>There could be a bug in one or more of the processes</li>
+<li>An attacker could have compromised one of the nodes
+These are all realistic problems that we need to handle to properly handle faults. With the Byzantine failure model,
+<em>any</em> node behavior is possible, and nodes can fail in arbitrary ways. This is why this is the strongest failure model.</li>
+</ul>
+</li>
+<li>We may want to operate a distributed system in the presence of untrusted nodes. This was not true when using Raft or Paxos for consensus. A notable example of where we’d want this is some blockchain-based platforms.</li>
+</ul>
+<p>In general, we may want to have a system with dynamic membership, in the sense that new nodes could join the
+system at any time. This is something we’d want for, e.g. cryptocurrency blockchains, but something we will ignore here,
+as they will require different forms of consensus algorithms.</p>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

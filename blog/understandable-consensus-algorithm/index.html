@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: In Search of an Understandable Consensus Algorithm</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="In Search of an Understandable Consensus Algorithm">
+<meta property="og:description"
+    content="Background
+Raft is a consensus algorithm that was created by two researchers at Stanford University in order to create a more understandable algorithm than Paxos. These algorithms were created for separate servers that work together to form a coherent group. The benefit of this working model is that the group can survive the death of some of the separate servers. The two researchers attempted to learn Paxos for over a year but were ultimately unsuccessful. The researchers decided that a new consensus algorithm needed to be designed with understandability at the forefront.
+In order to create a more understandable consensus algorithm the authors focused on decomposition of the solutions into three parts: leader election, log replication, and safety mechanisms. If the solutions could be broken down into smaller pieces, this would create more manageable pieces for understanding and using Raft. Another technique they used to increase the understandability was reducing the state spaces to simplify behavior and decrease nondeterminism. Unlike Paxos, which allows entries in the log to be entered in different ways, Raft ensures all logs match the leader’s log, avoiding inconsistencies and this stems from having a leader, replicating logs to all systems, and the leader enforcing a log order.
+Main Contributions
+The researchers contributed a new consensus algorithm that is open source.
+Results
+The results of this paper showed that students scored higher test scores for Raft when given lectures about Raft and Paxos with the order of the lectures distributed evenly across the test group. 33 students out of 43 scored higher on the Raft test than on the Paxos test. The other result that was discussed in the paper was that the performance of Raft is comparable to Paxos.
+Impacts
+The new consensus algorithm, Raft, was quickly and widely adopted which is in stark contrast to Paxos. Paxos was created in the late 1970s by Leslie Lamport but even though Lamport published Paxos paper, there was no widespread adoption. So he later published a “Paxos made simple” paper to make it more adaptable because people could not understand or use Paxos. This is why Raft is seen as an important alternative to Paxos. People were using Raft within weeks of this paper being published.
+Strength and Weaknesses
+This paper highlighted the understandability of a consensus algorithm and the paper was written with seemingly similar goals in mind. This paper was by far the easiest to read of any we have looked at so far in class so that is a strength that not many technical papers have. The downside of this is that they seemed to have lost some technical detail that would have strengthened their claims of superiority. There was no test done to actually compare the functionality of Paxos to Raft and yet they claim that the performance is similar. This seems slightly suspicious especially after the authors self-reported that they couldn’t really use Paxos. I also would like to see a larger sample size than 43 since this is a small sample size to get statistically significant data from. A weakness of Raft itself is that using one server as a leader could create a bottleneck within high-traffic systems.
+">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>In Search of an Understandable Consensus Algorithm</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Benjamin Knutson (leader),
+      
+        Rabecka Moffit (blogger),
+      
+        Nanda Velugoti (scribe),
+      
+        Eugene Cohen,
+      
+        David Luo
+      
+      <span>
+    
+    <time datetime="2025-02-03">
+      February  3, 2025
+    </time>
+  </p>
+  <h2 id="background">Background</h2>
+<p>Raft is a consensus algorithm that was created by two researchers at Stanford University in order to create a more understandable algorithm than Paxos. These algorithms were created for separate servers that work together to form a coherent group. The benefit of this working model is that the group can survive the death of some of the separate servers. The two researchers attempted to learn Paxos for over a year but were ultimately unsuccessful. The researchers decided that a new consensus algorithm needed to be designed with understandability at the forefront.</p>
+<p>In order to create a more understandable consensus algorithm the authors focused on decomposition of the solutions into three parts: leader election, log replication, and safety mechanisms. If the solutions could be broken down into smaller pieces, this would create more manageable pieces for understanding and using Raft. Another technique they used to increase the understandability was reducing the state spaces to simplify behavior and decrease nondeterminism. Unlike Paxos, which allows entries in the log to be entered in different ways, Raft ensures all logs match the leader’s log, avoiding inconsistencies and this stems from having a leader, replicating logs to all systems, and the leader enforcing a log order.</p>
+<h2 id="main-contributions">Main Contributions</h2>
+<p>The researchers contributed a new consensus algorithm that is open source.</p>
+<h2 id="results">Results</h2>
+<p>The results of this paper showed that students scored higher test scores for Raft when given lectures about Raft and Paxos with the order of the lectures distributed evenly across the test group. 33 students out of 43 scored higher on the Raft test than on the Paxos test. The other result that was discussed in the paper was that the performance of Raft is comparable to Paxos.</p>
+<h2 id="impacts">Impacts</h2>
+<p>The new consensus algorithm, Raft, was quickly and widely adopted which is in stark contrast to Paxos. Paxos was created in the late 1970s by Leslie Lamport but even though Lamport published Paxos paper, there was no widespread adoption. So he later published a “Paxos made simple” paper to make it more adaptable because people could not understand or use Paxos. This is why Raft is seen as an important alternative to Paxos. People were using Raft within weeks of this paper being published.</p>
+<h2 id="strength-and-weaknesses">Strength and Weaknesses</h2>
+<p>This paper highlighted the understandability of a consensus algorithm and the paper was written with seemingly similar goals in mind. This paper was by far the easiest to read of any we have looked at so far in class so that is a strength that not many technical papers have. The downside of this is that they seemed to have lost some technical detail that would have strengthened their claims of superiority. There was no test done to actually compare the functionality of Paxos to Raft and yet they claim that the performance is similar. This seems slightly suspicious especially after the authors self-reported that they couldn’t really use Paxos. I also would like to see a larger sample size than 43 since this is a small sample size to get statistically significant data from. A weakness of Raft itself is that using one server as a leader could create a bottleneck within high-traffic systems.</p>
+
+  <footer>
+    
+    <p>[Benjamin Knutson] is currently pursuing a B.S. in Electrical and Computer engineering, spends most of his time playing games, studying languages, and rushing to finish his homework.</p>
+<p>[Rabecka Moffit] is an electrical engineering student pursuing a M.Eng. and a B.S at Oregon State University who enjoys gravel biking, surfing, and baking.</p>
+<p>[Nanda Velugoti] CS PhD student and their research interest is in Systems (Memory Systems, Operating Systems, etc) and is currently working on memory aware efficient power management scheme and PIM offloading.</p>
+
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

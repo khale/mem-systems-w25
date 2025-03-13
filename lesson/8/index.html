@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Fault Tolerance and Replication</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 8:
+  Fault Tolerance and Replication
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/36" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;www.distributed-systems.net&#x2F;index.php&#x2F;books&#x2F;ds4&#x2F;" class="icon reading">* Free Distributed Systems textbook</a>
+    
+    <br>Maarten van Steen and Andrew Tanenbaum
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;lamport.azurewebsites.net&#x2F;pubs&#x2F;time-clocks.pdf" class="icon reading">* Time, Clocks, and the Ordering of Events in a Distributed System</a>
+    
+    <br>Leslie Lamport, 1978
+    
+  </li>
+  
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel comfortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<p>The slides from lecture can be found on Canvas.</p>
+<h3 id="distributed-systems">Distributed systems</h3>
+<p>So far, the systems we’ve looked at have been distributed in the sense that we have multiple elements working in parallel.
+However, what we’ll be talking about now is a little different, because these systems will be <em>loosely coupled</em>. We’ll
+talk about precisely what this means in lecture, but in short, the networks are unreliable, and nodes in the system
+are much more prone to failure. In loosely-coupled systems, we also tend to see more support for dynamic membership
+in the system, i.e. nodes can come and go at will. We’ll talk more about that next time.</p>
+<h4 id="what-makes-ds-challenging">What makes DS challenging?</h4>
+<ul>
+<li>unreliable communication links (WiFi, undersea cable links, IT guy unplugging the ethernet cable, etc.)</li>
+<li>processes may crash due to bugs or node failures</li>
+<li>events generally are non-deterministic</li>
+</ul>
+<p>Despite all of this, we still want to be able to build systems for such environments that continue to work. This
+requires <strong>fault tolerance</strong>. A fault-tolerant system is one that can detect faults and recover from them (and/or keep
+working correctly in their presence).</p>
+<p>In the slides, we’ll try to cover (at a surface level):</p>
+<ul>
+<li>RPC and networking</li>
+<li>Two-generals and byzantine generals problem</li>
+<li>System models (network model, node/failure model, timing model)</li>
+<li>Failure Detection</li>
+<li>Lamport Clocks and Vector clocks</li>
+<li>Broadcast Models</li>
+<li>Basics of Replication</li>
+<li>Idempotence</li>
+<li>Quorums</li>
+<li>State Machine Replication (SMR)</li>
+</ul>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

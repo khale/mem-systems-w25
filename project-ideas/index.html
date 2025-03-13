@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Project Ideas</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1 id="project-ideas-and-inspiration">Project Ideas and Inspiration</h1>
+<p>I will first give some general approaches you can use to come up with ideas, then list a few specific ideas.
+While there are many ways to come up with promising research projects, there are two methods that tend to be
+pretty reliable, though if you’re not careful they can result in work that some might describe as “incremental.”</p>
+<h2 id="approach-1-measure-then-build">Approach 1: Measure, Then Build</h2>
+<p>This approach, <a href="https://www.usenix.org/conference/atc19/presentation/keynote">made explicit by Remzi Arpaci-Dusseau</a>, involves taking some existing system, framework, or method
+and building on it. For computer systems work, this usually starts with measurement. A common series of steps:</p>
+<ol>
+<li>Try to get the code or method for the system/paper working</li>
+<li>Try to reproduce the results in the authors’ paper</li>
+<li>Try to question the assumptions of the original paper. Maybe they missed some benchmarks. Maybe they cherry-picked benchmarks a bit, presenting the results of the system in a more positive light than it deserved, or maybe the types of workloads that we care about have changed, so we want to provide more representative inputs to the system. Papers from top researchers will tend to be honest about what the limitations of the present work are, and sometimes you’ll get lucky and the paper has a “weaknesses” or “limitations” section that can give you pretty obvious starting points for how to improve it.</li>
+<li>Work to improve the system based on your findings in (3). This may sound easy, but there’s often a good reason for limitations in the paper. It may be that the authors just didn’t have enough time, or maybe the challenge they identified is a fundamental one that would require an entire PhD to solve. If this is your first time conducting research, probably best not to try to tackle the latter. If you’re lucky again, the paper authors have already identified this challenge as a Hard one, so you can proceed with caution.</li>
+<li>Many times (4) will lead you on side paths that have their own merit. You may find these more interesting. Other times, “fixing” the system to solve whatever problem you’ve identified is sufficiently cumbersome such that starting with a clean slate would be better. This is good, because it means you’re learning about designing systems with constraints.</li>
+</ol>
+<p>Of course, even getting to step 1 assumes that you’ve found some paper/system/tool to start with. That’s of course why we’re reading a bunch of papers in this course! You can start with any of the papers you find interesting or exciting. Or, maybe you have a paper or system you’re already excited about. Start with that!</p>
+<h2 id="approach-2-adaptation">Approach 2: Adaptation</h2>
+<p>Sometimes very good solutions have been found to certain systems challenges, but
+the assumptions those solutions are based on have changed. So this approach basically
+involves taking some established system, and looking to see if it still works or applies
+to modern constraints or scenarios. Examples:</p>
+<ul>
+<li>Modern out-of-order cores are great, but do they work well for emerging AI workloads? Turns out not near as well
+as a GPU, or an accelerator.</li>
+<li>The OS page cache is a great way to minimize unnecessary disk I/O. But what happens when you run a data-intensive
+database application on it? This great mechanism, and the OS itself, can get in the way.</li>
+<li>Integer benchmarks make our CPU look really good, but what if customers are mostly interested in half-precision
+floating point math?</li>
+</ul>
+<p>This approach, a bit like the first, involves taking a close look at the assumptions of whatever system/paper
+you’re considering. These assumptions will often be explicitly stated in good papers. Sometimes the inverse
+of this approach can be useful too: namely, applying an old idea to a new problem (especially in an unexpected way).</p>
+<hr />
+<p><strong>Note on research novelty</strong>: If you’re not interested in publishing your research, you
+can ignore this note. If you <em>are</em>, you must realize that <em>novelty</em> is
+important in getting your research published. Basically, this means that you’re
+really doing something no one else has done before. Say the system you’re
+building on is from 2014, and you’ve found some issues with it. You could spend
+a quarter or an entire year solving those problems, submit your paper to a research conference,
+and get reviews back saying “the paper lacks novelty because it turns out John
+Doe published a paper that already solved those problems in 2020.” What would
+have helped mitigate this problem was doing a literature search. So really,
+what you need to do is identify a problem, and first look for papers that may
+have solved that problem. This is an acquired skill, and if you think you’ve
+gotten to this point, come talk to me. There is <em>a lot</em> of research out there,
+so it’s entirely possible that you miss a paper that solved your problem even
+after you had done an exhaustive search. This happens to the best of us, but it can
+be avoided if you know where and how to look. Even more infuriating is when
+someone is working on the same problem in parallel and happens to publish their paper
+a month before yours. Despite these risks, even if you get “scooped” it isn’t like you’ve wasted your
+time. Working on challenging problems helps you grow, and it can be fun! Especially
+if you don’t have any particular time constraints, it can still be exhilarating to
+work on something that you know someone else has already solved. Sometimes you’ll come up
+with a new and original way to solve the problem that’s better than the original! In cases like this,
+it’s even helpful to ignore the original solution entirely then compare your approach after the fact.
+I like to call this the “working without the back of the book” approach.</p>
+<h2 id="some-project-ideas">Some Project Ideas</h2>
+<p>You can of course build on any paper we look at in class (or other papers!). Here are some rough ideas
+we’ve at least thought about in my group. These don’t necessarily follow the two approaches above.</p>
+<ul>
+<li>Add profiling support to our <a href="https://dl.acm.org/doi/10.1145/3617232.3624856">TrackFM</a> compiler. Measure its effectiveness.</li>
+<li>Work with Nanda on energy-efficient, hybrid architectures. Namely, trying to understand good power control techniques for memory-intensive applications.</li>
+<li>Explore combining a fully-persistent OS (see Whole-System Persistence paper) with disaggergated memory</li>
+<li>Explore using memory pooling (disaggregated memory) with the <a href="https://aws.amazon.com/blogs/aws/firecracker-lightweight-virtualization-for-serverless-computing/">Firecracker VMM</a>.</li>
+<li>Investigate the use of <a href="https://en.wikipedia.org/wiki/Kernel_same-page_merging">page deduplication</a> in disaggregated memory systems.</li>
+<li>See if you can apply the idea of <a href="https://www.usenix.org/conference/2005-usenix-annual-technical-conference/debugging-operating-systems-time-traveling">time travel</a> or <a href="https://en.wikipedia.org/wiki/Versioning_file_system">versioning</a> to small objects. Maybe also explore how to expose this feature in the programming language.</li>
+<li>Build a versioned file system for persistent memory and uncover challenges with this idea</li>
+<li>Adapt a task-parallel runtime system (like <a href="https://cilk.mit.edu/runtime/">Cilk</a>) to run on the <a href="https://www.upmem.com/">UPMEM</a> proceessing-in-memory (PIM) architecture.</li>
+<li>Extend the <a href="https://conf.researchr.org/details/cgo-2023/cgo-2023-main-conference/8/WARDen-Specializing-Cache-Coherence-for-High-Level-Parallel-Languages">WARDen</a> framework to automatically select consistency in addition to coherence.</li>
+<li>See if <a href="https://www.usenix.org/conference/osdi21/presentation/bhardwaj">OS kernels</a> that use <a href="https://cs.brown.edu/~irina/papers/asplos2017-final.pdf">node replication</a> work well when applied to a disaggregated system.</li>
+</ul>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

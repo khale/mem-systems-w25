@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: FMI: Fast and Cheap Message Passing for Serverless Functions</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FMI: Fast and Cheap Message Passing for Serverless Functions">
+<meta property="og:description"
+    content="Introduction
+This blog post covers FMI: Fast and Cheap Message Passing for Serverless Functions, a research paper submitted on May 15, 2023, and presented on January 22, 2025. The paper introduces the FaaS Message Interface (FMI), a high-performance communication framework for serverless computing. Traditional serverless architectures rely on storage-based communication (AWS S3, Redis, DynamoDB), introducing significant latency and cost overhead. FMI overcomes these challenges using direct TCP communication enabled through TCP NAT hole punching (TCPunch), reducing latency, cost, and complexity.">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>FMI: Fast and Cheap Message Passing for Serverless Functions</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Sami Aljabery (Scribe),
+      
+        Gabriel Rodgers (Blogger),
+      
+        Noah Bean (Leader)
+      
+      <span>
+    
+    <time datetime="2025-01-22">
+      January 22, 2025
+    </time>
+  </p>
+  <h2 id="introduction">Introduction</h2>
+<p>This blog post covers <strong>FMI: Fast and Cheap Message Passing for Serverless Functions</strong>, a research paper submitted on <strong>May 15, 2023</strong>, and presented on <strong>January 22, 2025</strong>. The paper introduces the <strong>FaaS Message Interface (FMI)</strong>, a high-performance communication framework for <strong>serverless computing</strong>. Traditional serverless architectures rely on <strong>storage-based communication</strong> (<strong>AWS S3, Redis, DynamoDB</strong>), introducing significant <strong>latency and cost overhead</strong>. FMI overcomes these challenges using <strong>direct TCP communication</strong> enabled through <strong>TCP NAT hole punching (TCPunch)</strong>, reducing <strong>latency, cost, and complexity</strong>.</p>
+<hr />
+<h2 id="background-and-context">Background and Context</h2>
+<p>Function-as-a-Service (<strong>FaaS</strong>) is a widely used <strong>serverless</strong> cloud computing model, offering <strong>elastic scaling</strong> and <strong>fine-grained billing</strong>, making it ideal for <strong>machine learning, data analytics, and distributed applications</strong>. However, serverless functions <strong>lack efficient, low-latency communication mechanisms</strong> and often depend on <strong>cloud storage-based solutions</strong> such as <strong>AWS S3, Redis, and DynamoDB</strong>. These solutions <strong>increase latency and cost</strong>, making <strong>frequent inter-function communication</strong> inefficient.</p>
+<p>Additionally, serverless functions operate <strong>behind Network Address Translation (NAT) gateways</strong>, preventing <strong>direct</strong> connections between functions. This introduces <strong>overhead and complexity</strong>, requiring functions to <strong>relay messages</strong> through cloud-based storage which further increases <strong>latency</strong>.</p>
+<p>To solve these issues, <strong>FMI</strong> introduces <strong>TCP NAT hole punching (TCPunch)</strong> to establish <strong>direct, low-latency</strong> connections between functions.</p>
+<hr />
+<h2 id="keywords">KEYWORDS</h2>
+<ul>
+<li><strong>High-Performance Computing (HPC)</strong> – Systems designed for maximum processing speed and efficiency, often used for computationally intensive tasks. Utilizes optimized communication protocols like <strong>Message Passing Interface (MPI)</strong>.</li>
+<li><strong>I/O (Input/Output)</strong> – Data transfer mechanisms affecting performance in serverless platforms. High-latency I/O limits performance and scalability.</li>
+<li><strong>Serverless</strong> – A cloud model where functions execute <strong>without server management</strong>. Cost-effective, scalable, and eliminates infrastructure maintenance.</li>
+<li><strong>Function-as-a-Service (FaaS)</strong> – A subset of serverless computing focused on <strong>stateless function execution</strong> with elastic scaling and fine-grained billing.</li>
+<li><strong>Remote Memory Access (RMA)</strong> – A mechanism allowing a process to <strong>directly access the memory</strong> of a remote process, reducing access latency.</li>
+<li><strong>Stateless Functions</strong> – Functions <strong>without memory of prior invocations</strong>, simplifying scaling and deployment.</li>
+<li><strong>Elastic Scaling</strong> – <strong>Dynamic resource allocation</strong> based on workload demand.</li>
+<li><strong>Communication Bottleneck</strong> – <strong>Slow and costly</strong> inter-function messaging in serverless platforms.</li>
+<li><strong>Cloud Storage</strong> – Persistent storage solutions (AWS S3, Redis, DynamoDB) with <strong>high latency</strong> and additional cost.</li>
+<li><strong>Transmission Control Protocol (TCP)</strong> – A <strong>reliable</strong> communication protocol. FMI leverages TCP for message passing.</li>
+<li><strong>Network Address Translation (NAT)</strong> – A process that maps private IP addresses to public IPs, enabling internet communication but restricting direct function-to-function networking.</li>
+<li><strong>NAT Hole Punching</strong> – A technique to <strong>bypass NAT restrictions</strong> by using a relay server to share external ports, enabling direct connections.</li>
+<li><strong>TCP NAT Hole Punching (TCPunch)</strong> – The paper’s novel technique for <strong>direct TCP communication</strong> in serverless environments.</li>
+<li><strong>Message Passing Interface (MPI)</strong> – A standardized API for <strong>parallel computing</strong> that FMI is inspired by.</li>
+<li><strong>AWS Lambda</strong> – A widely used <strong>serverless computing platform</strong>.</li>
+<li><strong>Redis</strong> – An in-memory data store and fast message broker. Suitable for low-latency but requires user-managed scalability.</li>
+<li><strong>DynamoDB</strong> – A fully managed NoSQL database optimized for low-latency data retrieval.</li>
+<li><strong>AWS S3</strong> – Scalable object storage with <strong>high durability</strong> and availability. Has higher latency and cost for frequent communication.</li>
+</ul>
+<hr />
+<h2 id="detailed-summary-of-the-paper">Detailed Summary of the Paper</h2>
+<h3 id="summary-of-1-introduction">Summary of 1. Introduction</h3>
+<p>The paper introduces the <strong>FaaS Message Interface (FMI)</strong>, a modular and high-performance communication framework designed to address the inefficiencies of serverless communication. Inspired by the Message Passing Interface (MPI), FMI brings standardized abstractions for point-to-point and collective communication to Function-as-a-Service (FaaS) platforms.</p>
+<p>Key contributions include:</p>
+<ul>
+<li>A library for message passing that provides common, standardized abstractions for serverless point-to-point and group communication.</li>
+<li>Analytical models for communication channels in FaaS and a discussion of the performance-price trade-offs of serverless communication.</li>
+<li>A demonstration of the application of FMI to serverless machine learning, showing reduced communication overhead by up to <strong>162x</strong> and cost savings up to <strong>397x</strong> compared to existing solutions.</li>
+</ul>
+<h3 id="summary-of-2-design-of-fmi">Summary of 2. Design of FMI</h3>
+<p>FMI’s design includes multiple <strong>communication channels</strong>, each tailored for specific use cases and trade-offs:</p>
+<ul>
+<li><strong>Direct Channels</strong>: Utilize TCP connections with NAT hole punching for low-latency, efficient communication.</li>
+<li><strong>Mediated Channels</strong>: Leverage cloud storage systems like AWS S3, Redis, and DynamoDB for scenarios requiring persistent data exchange.</li>
+</ul>
+<p>Key features of FMI’s design:</p>
+<ul>
+<li><strong>Cloud-Agnostic Portability</strong>: Operates across various serverless platforms (AWS Lambda, Kubernetes) while integrating with MPI for hybrid HPC-serverless workflows.</li>
+<li><strong>Customizability</strong>: Developers can add new communication protocols (QUIC) and optimize collective algorithms for workload-specific needs.</li>
+<li><strong>Collective Operations</strong>: Implements MPI-inspired collective operations (broadcast, reduce, allreduce) optimized for serverless contexts using efficient algorithms.</li>
+</ul>
+<h3 id="summary-of-3-implementation-of-fmi">Summary of 3. Implementation of FMI</h3>
+<p>The FMI framework is lightweight (~1,900 lines of C++ code) and provides:</p>
+<ul>
+<li><strong>TCPunch Library</strong>: A custom NAT hole-punching solution storing and sharing address translations to enable direct connections between serverless functions.</li>
+<li><strong>Multi-language Support</strong>: Primarily C++, but with Python bindings for accessibility.</li>
+<li><strong>Communicators</strong>: Organize serverless functions into groups, enabling scalable and independent communication patterns. Functions within a communicator synchronize with timers for consistency and fault isolation.</li>
+</ul>
+<h3 id="summary-of-4-evaluation">Summary of 4. Evaluation</h3>
+<p>FMI is evaluated for <strong>latency</strong>, <strong>bandwidth</strong>, <strong>cost</strong>, and <strong>scalability</strong>:</p>
+<ul>
+<li><strong>Latency</strong>: Direct TCP communication reaches microsecond-level latency, ~162x faster than AWS S3 or DynamoDB.</li>
+<li><strong>Cost Efficiency</strong>: FMI reduces costs by up to <strong>397x</strong>, with as little as $0.02 per 1,000 epochs for distributed machine learning workloads.</li>
+<li><strong>Scalability</strong>: Scales efficiently to 256 functions, outperforming Redis and DynamoDB, which suffer bottlenecks and timeouts at scale.</li>
+<li><strong>Bandwidth</strong>: Delivers superior bandwidth across various message sizes, maintaining stability under high concurrency.</li>
+</ul>
+<h3 id="important-results">Important Results</h3>
+<ol>
+<li>
+<p><strong>Reduction in Communication Latency</strong></p>
+<ul>
+<li>Direct TCP achieves microsecond-level latency, up to <strong>162x faster</strong> than storage-based methods.</li>
+</ul>
+</li>
+<li>
+<p><strong>Cost Savings</strong></p>
+<ul>
+<li>Up to <strong>397x</strong> reduction in communication costs. Some ML workloads see costs under <strong>$0.02</strong> per 1,000 epochs, versus <strong>$7.52</strong> with DynamoDB.</li>
+</ul>
+</li>
+<li>
+<p><strong>Improved Scalability</strong></p>
+<ul>
+<li>Efficient scaling to 256 serverless functions while maintaining low latency and high bandwidth.</li>
+</ul>
+</li>
+<li>
+<p><strong>Bandwidth Performance</strong></p>
+<ul>
+<li>Superior bandwidth performance across message sizes, stable under high concurrency.</li>
+</ul>
+</li>
+<li>
+<p><strong>Optimized Collective Operations</strong></p>
+<ul>
+<li>Implements broadcast, reduce, and allreduce with the lowest latency across all evaluated solutions.</li>
+</ul>
+</li>
+<li>
+<p><strong>Case Study in Distributed Machine Learning</strong></p>
+<ul>
+<li>Replacing DynamoDB with FMI yields a <strong>1224x</strong> improvement in communication speed, with no significant integration overhead.</li>
+</ul>
+</li>
+<li>
+<p><strong>Minimal Integration Overhead</strong></p>
+<ul>
+<li>Only <strong>four lines of code</strong> were changed to replace DynamoDB with FMI in the machine learning example.</li>
+</ul>
+</li>
+</ol>
+<h3 id="strengths-and-weaknesses-of-the-paper">Strengths and Weaknesses of the Paper</h3>
+<h4 id="strengths">Strengths</h4>
+<ol>
+<li>
+<p><strong>Innovative Solution</strong></p>
+<ul>
+<li>Introduces a novel approach (TCP NAT hole punching) to solve communication bottlenecks in serverless computing.</li>
+</ul>
+</li>
+<li>
+<p><strong>Comprehensive Evaluation</strong></p>
+<ul>
+<li>Benchmarks compare FMI against AWS S3, DynamoDB, and Redis for latency, cost, bandwidth, and scalability.</li>
+</ul>
+</li>
+<li>
+<p><strong>Scalability</strong></p>
+<ul>
+<li>Maintains performance up to 256 serverless functions without significant degradation.</li>
+</ul>
+</li>
+<li>
+<p><strong>Low Cost and High Performance</strong></p>
+<ul>
+<li>Achieves up to 397x cost savings and 162x faster communication.</li>
+</ul>
+</li>
+<li>
+<p><strong>Portability and Modularity</strong></p>
+<ul>
+<li>Cloud-agnostic design compatible with AWS Lambda, Kubernetes, and MPI.</li>
+</ul>
+</li>
+<li>
+<p><strong>Ease of Integration</strong></p>
+<ul>
+<li>Minimal code changes required, facilitating adoption in existing systems.</li>
+</ul>
+</li>
+</ol>
+<h4 id="weaknesses">Weaknesses</h4>
+<ol>
+<li>
+<p><strong>Reliance on Assumptions</strong></p>
+<ul>
+<li>Assumes all functions in a communication group are co-located and run concurrently, which may not always hold in practice.</li>
+</ul>
+</li>
+<li>
+<p><strong>Limited Fault Tolerance</strong></p>
+<ul>
+<li>Lacks built-in mechanisms for handling individual function failures mid-communication.</li>
+</ul>
+</li>
+<li>
+<p><strong>Dependency on External Infrastructure</strong></p>
+<ul>
+<li>Requires a <strong>hole-punching server</strong> for address translation.</li>
+</ul>
+</li>
+<li>
+<p><strong>Limited Real-World Testing</strong></p>
+<ul>
+<li>Evaluated mainly in controlled benchmarks and case studies with broader real-world validations needed.</li>
+</ul>
+</li>
+</ol>
+<hr />
+<h2 id="class-discussion">Class Discussion</h2>
+<h3 id="clarification-on-table-1">Clarification on Table 1</h3>
+<ul>
+<li>Table 1 presents a <strong>general performance comparison</strong> of object storage, NoSQL databases, in-memory caches, and direct TCP.</li>
+<li><strong>Key takeaway</strong>: Direct TCP has zero cloud provider cost, but the computation burden may shift to the user, slightly reducing the impact of “no cost.”</li>
+</ul>
+<h3 id="udp-vs-tcp">UDP vs TCP?</h3>
+<ul>
+<li><strong>Why UDP wasn’t tested</strong>:
+<ul>
+<li>Cloud providers (like AWS) control UDP usage and do not currently allow it in serverless environments.</li>
+<li>Existing serverless frameworks already provide direct TCP communication.</li>
+<li>If AWS supported UDP for serverless computing, the authors might have tested it instead of TCP.</li>
+</ul>
+</li>
+</ul>
+<h3 id="open-source-cloud">Open Source Cloud?</h3>
+<ul>
+<li><strong>Are cloud providers open source?</strong>
+<ul>
+<li>Typically, no. Cloud providers like AWS are highly opaque, preventing visibility into the underlying infrastructure.</li>
+<li>They can move serverless functions among different physical servers without user knowledge, complicating assumptions about network state.</li>
+</ul>
+</li>
+</ul>
+<h3 id="clarification-on-figures">Clarification on Figures</h3>
+<ul>
+<li><strong>Violin plots and box plots</strong>: The paper uses them to display <strong>data distribution</strong> across multiple trials.
+<ul>
+<li>Violin plots show data spread (with a median dot).</li>
+<li>Box plots depict the median, quartiles, and outliers more succinctly.</li>
+</ul>
+</li>
+<li>The authors use these to demonstrate performance variance and the stability of FMI versus other solutions.</li>
+</ul>
+<h3 id="openai-and-other-cloud-providers-use-of-fmi">OpenAI (and other cloud providers’) Use of FMI?</h3>
+<ul>
+<li><strong>Could OpenAI use FMI?</strong>
+<ul>
+<li>Potentially yes. OpenAI’s services could benefit from direct TCP for certain workloads.</li>
+<li>TCP tunables (like window size) impact performance, as shown in the paper’s figures.</li>
+<li>If an open-source serverless framework offered full control, UDP or RMA-based approaches might be tested as well.</li>
+<li>AWS’s closed nature limits certain optimizations.</li>
+</ul>
+</li>
+</ul>
+<h3 id="rma-discussion">RMA Discussion?</h3>
+<ul>
+<li>The paper references <strong>RMA</strong> (Remote Memory Access) as another model of communication.
+<ul>
+<li>It’s mentioned to highlight potential benefits and trade-offs of different data-exchange paradigms in heterogeneous environments (including FPGAs).</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h2 id="sources">Sources</h2>
+<ul>
+<li><strong>FMI: Fast and Cheap Message Passing for Serverless Functions</strong></li>
+<li><strong>OSTEP Textbook</strong> – Remzi Arpaci-Dusseau</li>
+<li><strong>Computer Organization and Design RISC-V Edition: The Hardware/Software Interface, 2nd Edition</strong> (2020)
+<ul>
+<li>Authors: David A. Patterson, John L. Hennessy</li>
+</ul>
+</li>
+<li><strong>Computer Architecture, Sixth Edition: A Quantitative Approach</strong> (2017)
+<ul>
+<li>Authors: John L. Hennessy, David A. Patterson</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h2 id="generative-ai">Generative AI</h2>
+<h3 id="ai-tools-used">AI Tools Used</h3>
+<ul>
+<li><strong>ChatGPT</strong>: <a href="https://chatgpt.com/">https://chatgpt.com/</a></li>
+<li><strong>DeepSeek</strong>: <a href="https://www.deepseek.com/">https://www.deepseek.com/</a></li>
+</ul>
+<p>These tools aided in:</p>
+<ul>
+<li>Generating ideas for the outline.</li>
+<li>Explaining complex keywords.</li>
+<li>Providing prose feedback.</li>
+<li>Converting the document to Markdown</li>
+</ul>
+<h3 id="example-contribution">Example Contribution</h3>
+<ul>
+<li><strong>Improving Clarity</strong>: Simplifying sentence structure and refining word choices for better readability.</li>
+<li>Changed “The paper references RMA, which does shared memory over distributed memory - another way of doing send/receives. What was this reference for? The reference to RMA was to talk about heterogeneous environments in comparison with others such as FPGAs.” to “The paper references <strong>RMA</strong> (Remote Memory Access) as another model of communication.  It’s mentioned to highlight potential benefits and trade-offs of different data-exchange paradigms in heterogeneous environments (including FPGAs).”</li>
+</ul>
+<h3 id="limitations">Limitations</h3>
+<ul>
+<li><strong>Potential Inaccuracy</strong>: Generative AI content should be externally validated.</li>
+<li><strong>Brainstorming vs. Factual Source</strong>: Great for brainstorming and suggestions, but final facts must be verified.</li>
+<li><strong>Unavailable</strong>: Deepseek provides a free alternative to ChatGPT, but the server is frequently Unavailable.</li>
+<li><strong>Low Quality</strong>: Writing is often repetitive and uninspired with important details missing. Changed “Message Passing Interface (MPI) – A standardized API for parallel programming in distributed memory systems. MPI enables communication between processes on different nodes. FMI is modeled after MPI to provide similar abstractions for serverless platforms.” to “<strong>Message Passing Interface (MPI)</strong> – A standardized API for <strong>parallel computing</strong>, which FMI models for FaaS.”</li>
+</ul>
+<hr />
+<p><em>Did you find this post insightful? Share your thoughts below!</em></p>
+
+  <footer>
+    
+    <p>Noah Bean is an undergraduate electrical and computer engineering student at Oregon State University. He is passionate about computer systems, likes math, and enjoys the gym.</p>
+
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Automatic offloading of memory-intensive compute to nearby PIM modules</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Automatic offloading of memory-intensive compute to nearby PIM modules">
+<meta property="og:description"
+    content="Introduction
+PIM (Processing-In-Memory) is a computing paradigm where memory intensive operations are executed in DPUs (DRAM&#x2F;Data Processing Units) that are situated near if not within the DRAM (main memory) chip. PIM enables near data processing leading to higher memory bandwidth utilization and higher overall performance in workloads that consist of memory-intensive operations. This is true because PIM computation bypasses multi-level cache accesses in CPU avoiding all the costs associated with such accesses. The result is improved scalability and performance in many parallel workloads. This is extensively studied in research works such as PRIM benchmarks and SimplePIM framework.
+However, these frameworks require programmers to be aware of applications’ dynamic memory characteristics to properly modify the program and re-compile it to reap the benefits of PIM offloading. But, in many cases, this is not necessarily true. To solve this, we propose automatically detecting memory-intensive parts of an application and offload that piece of computation to a nearby PIM device. We use memory profiling and analysis tool, MemGaze, to collect memory traces and metrics. We then use this data to extract memory-intensive regions (“hot sequences”) of the program.
+A major challenge however is, how do we decide which functions are worth offloading to nearby PIM processors? To solve this problem we construct a cost model that takes in memory related metrics and clusters as input and output an associated cost for code regions. We can then use the cost to make the offload decision. This is the core contribution of this project.
+Background
+MemGaze
+MemGaze is a low overhead memory analysis tool that provides dynamic memory traces and memory access metrics such as footprint, re-use distance. MemGaze is also capable of analyzing the memory access patterns from the dynamic trace and classifies them into sequential, strided, indirect accesses. MemGaze injects PTWRITE instruction for each LD&#x2F;ST instruction in the target application binary. MemGaze then runs this instrumented binary to collect memory access samples and generates a whole program dynamic trace. These traces are further analyzed to generate aforementioned memory metrics and access classifications.
+UPMEM PIM Chips
+UPMEM’s special DRAM chip come with general purpose DPUs (DRAM&#x2F;Data Processing Units) which enables PIM programming. UPMEM provides Linux kernel drivers, an SDK and a custom compiler to develop PIM programs that can run in these DPUs. Programmers can use UPMEM’s host API to initialize, launch and orchestrate DPU programs from the host (CPU) program.
+Design and Implementation (The Goal)
+Since this project is part of much bigger on-going project we outline the scope of this project in the below high level diagram i.e., the green highlighted area is the existing work and red high lighted area is the scope of this project.">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>Automatic offloading of memory-intensive compute to nearby PIM modules</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Nanda Velugoti,
+      
+        Noah Bean
+      
+      <span>
+    
+    <time datetime="2025-03-12">
+      March 12, 2025
+    </time>
+  </p>
+  <h1 id="introduction">Introduction</h1>
+<p>PIM (Processing-In-Memory) is a computing paradigm where memory intensive operations are executed in DPUs (DRAM/Data Processing Units) that are situated near if not within the DRAM (main memory) chip. PIM enables near data processing leading to higher memory bandwidth utilization and higher overall performance in workloads that consist of memory-intensive operations. This is true because PIM computation bypasses multi-level cache accesses in CPU avoiding all the costs associated with such accesses. The result is improved scalability and performance in many parallel workloads. This is extensively studied in research works such as PRIM benchmarks and SimplePIM framework.</p>
+<p>However, these frameworks require programmers to be aware of applications’ dynamic memory characteristics to properly modify the program and re-compile it to reap the benefits of PIM offloading. But, in many cases, this is not necessarily true. To solve this, we propose automatically detecting memory-intensive parts of an application and offload that piece of computation to a nearby PIM device. We use memory profiling and analysis tool, MemGaze, to collect memory traces and metrics. We then use this data to extract memory-intensive regions (“hot sequences”) of the program.</p>
+<p>A major challenge however is, how do we decide which functions are worth offloading to nearby PIM processors? To solve this problem we construct a cost model that takes in memory related metrics and clusters as input and output an associated cost for code regions. We can then use the cost to make the offload decision. This is the core contribution of this project.</p>
+<h1 id="background">Background</h1>
+<h2 id="memgaze">MemGaze</h2>
+<p>MemGaze is a low overhead memory analysis tool that provides dynamic memory traces and memory access metrics such as footprint, re-use distance. MemGaze is also capable of analyzing the memory access patterns from the dynamic trace and classifies them into sequential, strided, indirect accesses. MemGaze injects <code>PTWRITE</code> instruction for each LD/ST instruction in the target application binary. MemGaze then runs this instrumented binary to collect memory access samples and generates a whole program dynamic trace. These traces are further analyzed to generate aforementioned memory metrics and access classifications.</p>
+<h2 id="upmem-pim-chips">UPMEM PIM Chips</h2>
+<p>UPMEM’s special DRAM chip come with general purpose DPUs (DRAM/Data Processing Units) which enables PIM programming. UPMEM provides Linux kernel drivers, an SDK and a custom compiler to develop PIM programs that can run in these DPUs. Programmers can use UPMEM’s host API to initialize, launch and orchestrate DPU programs from the host (CPU) program.</p>
+<h1 id="design-and-implementation-the-goal">Design and Implementation (The Goal)</h1>
+<p>Since this project is part of much bigger on-going project we outline the scope of this project in the below high level diagram i.e., the green highlighted area is the existing work and red high lighted area is the scope of this project.</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/design.png" alt="Design" /></p>
+<p>As the figure above illustrates, we designed a novel cost model to capture the cost of offloading compute (further discussed in “Cost Model” section). Before we talk about cost model, we first need to explain how we detect the memory intensive regions of a program. For this we use, MemGaze to collect traces and characterize the memory access intensity by using graph clustering to extract “hot sequences” as explained below.</p>
+<h2 id="memory-characterization">Memory Characterization</h2>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/trace-analysis.png" alt="Trace Analysis" /></p>
+<p>Steps to extract memory-intensive regions:</p>
+<ol>
+<li>Collect the dynamic memory trace using MemGaze</li>
+<li>Construct the IP (instruction pointer) transition graph where, <code>IP0</code> is followed by <code>IP1</code> <code>count</code> number of times</li>
+</ol>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/IP-transition.png" alt="IP Transition" /></p>
+<ol start="3">
+<li>Use Louvain clustering algorithm to cluster the transition graph</li>
+<li>The clustered sub-graphs represent the “hot sequences” (memory intensive) code regions.</li>
+</ol>
+<h2 id="modifying-memgaze">Modifying MemGaze</h2>
+<p>MemGaze outputs FP and RUD metrics at function level as an inclusive metric, i.e., if <code>main()</code> calls <code>foo()</code> (memory intensive function), <code>main()</code>’s footprint includes the footprint of<code>foo()</code>. This is not desirable because <code>main()</code> would be characterized as memory-intensive which is not true. To fix this, we edit MemGaze internals to spit out exclusive FP and RUD metrics for functions.</p>
+<h2 id="cost-model-what-was-done">Cost Model (What Was Done)</h2>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/cost-model.png" alt="Cost Model" /></p>
+<p>A cost function model was meant to be a comprehensive pipeline that could detect bottlenecks in the code, decide if those code regions were pim friendly, and then decide if the code regions were worth offloading to UPMEM PIM hardware.</p>
+<blockquote>
+<p><code>C = W1 * F_PIM-norm + W2 * R_amortize + W3 * L_modularity</code></p>
+</blockquote>
+<p>F_PIM-norm is a term that measures how well a workload matches the UPMEM PIM architecture’s strengths.  Specifically, it aggregates and scales factors such as Compute to Memory Ratio (CMR), Footprint (FP), Memory Bandwidth Demand (MBD), Access Intensity (AI), Parallelism Potential (PP), and Reuse Distance (RD). This linear model is highly interpretable, reduces correlation potential, and balances theoretical pim friendliness, with the UPMEM PIM specific idiosyncracies.</p>
+<blockquote>
+<p><code>F_PIM-norm = w1 · RD + w2 · AI + w3 · PP − w4 · CMR + w5 · MBD − w6 · FP</code></p>
+</blockquote>
+<p>The R_amortize term measures whether the execution time of a workload on UPMEM PIM justifies the overhead of offloading it from the host CPU.</p>
+<blockquote>
+<p><code>R_amortize = Ttransfer + Tpim + Toverhead</code>
+<code>Ttransfer = Data size / BW</code>
+<code>Tpim = Workload Ops / PIM Effective Throughput</code></p>
+</blockquote>
+<p>Toverhead is the time for data setup and formatting.</p>
+<p>The L_modularity term identifies where the memory hotspots in the code are located.
+To get this term, the workload graph will be reconstructed from the memgaze memory traces. Then, Leiden community detection will find clusters. These clusters will be refined through temporal and hierarchical analysis. Finally, the results will be mapped back to the source code to validate the findings.</p>
+<p>This pipeline balances executing speed, feasibility of data collection, interpretability to non-experts, and robustness against misclassification by utilizing a layered approach.</p>
+<h1 id="evaluation-were-we-successful">Evaluation (Were We Successful)</h1>
+<h2 id="test-setup">Test setup:</h2>
+<ul>
+<li>INTEL(R) XEON(R) SILVER 4509Y</li>
+<li>32 Cores, 500G RAM</li>
+<li>UPMEM Functional Simulator</li>
+<li>Benchmarks are run with single thread implementation</li>
+<li>Offload if cost &gt; threshold</li>
+</ul>
+<h2 id="benchmarks">Benchmarks</h2>
+<ul>
+<li>Vector Addition</li>
+<li>Reduction</li>
+<li>Histogram</li>
+</ul>
+<h2 id="cost-breakdown-for-vector-addition">Cost breakdown for Vector Addition</h2>
+<table><thead><tr><th>Function</th><th>Offload Cost (0 to 1)</th></tr></thead><tbody>
+<tr><td><code>main</code></td><td>0.8</td></tr>
+<tr><td><code>init_arrays</code></td><td>0.6</td></tr>
+<tr><td><code>vector_add</code></td><td>0.4</td></tr>
+</tbody></table>
+<h2 id="speed-up-due-to-offloading">Speed up due to offloading</h2>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/eval-result.png" alt="Reults" /></p>
+<h1 id="challenges-the-hardest-parts-to-get-right">Challenges (The Hardest Parts To Get Right)</h1>
+<ul>
+<li>Which clustering algorithm is more suitable for PIM based workloads?</li>
+<li>Which metrics are useful for the cost function?</li>
+<li>How to choose coefficients for cost function?</li>
+</ul>
+<h2 id="testing-related-challenges">Testing related challenges:</h2>
+<ul>
+<li>Upmem sdk + simulator learning curve</li>
+<li>NixOS learning curve</li>
+</ul>
+<h2 id="exploring-investigating-pim-suitable-metrics-and-clustering-algorithms">Exploring/Investigating PIM suitable Metrics and Clustering Algorithms</h2>
+<h2 id="louvain-vs-other-clustering-algorithms">Louvain vs Other Clustering Algorithms</h2>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/clustering1.png" alt="Clustering 1" /></p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/clustering2.png" alt="Clustering 2" /></p>
+<p>Louvain was previously used for clustering MemGaze IP transition graphs, but after investigation, it was discovered that Leiden delivered better accuracy (0.145 score vs. Louvain 0.142), 3.5x faster inference speed (14.39s vs. 49.76s), and better scalability (16362.5 vs. 85218.7 ratio). Leiden should be used in the final cost function, but Louvain is fine for the MVP.</p>
+<h2 id="linear-regression-vs-other-ml-models">Linear Regression vs other ML Models</h2>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/LR-vs-others.png" alt="LR vs other models" /></p>
+<p>The cost model relies on a linear regression-based approach to compute <code>F_PIM-norm</code>, assessing PIM-friendliness for UPMEM offloading. On a synthetic dataset of 31 workloads, it achieved 87.1% accuracy and 100% recall, correctly identifying all PIM-friendly cases, but its precision (81.82%) reflects some false positives, like misclassifying compute-heavy workloads due to a low threshold. Compared to XGBoost, which scored 90.32% accuracy and 92.74% ROC-AUC, linear regression trades precision (81.82% vs. 89.47%) for perfect recall, missing no offloading opportunities. XGBoost, with a 94.44% recall, missed a few PIM-friendly cases but balanced this with fewer errors (F1: 91.89% vs. 90.00%), leveraging non-linear modeling for better calibration (MAE 0.1698 vs. 0.4917, R² 0.6224 vs. -0.1578).
+For the MVP, linear regression’s simplicity (50 lines, no training) and interpretability outweigh XGBoost’s complexity (100 lines, training required), despite the latter’s edge in accuracy and robustness. XGBoost’s explainability concerns can be mitigated with tools like LIME and SHAP, making it a strong candidate for the final cost function model.</p>
+<h2 id="uniform-vs-other-sampling-methods">Uniform vs Other Sampling Methods</h2>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/uniform-vs-bursty.png" alt="Uniform vs other" /></p>
+<p>MemGaze uses uniform sampling to get memory traces. Uniform sampling is fine given its alignment with Intel PT’s high-speed, low-overhead requirements, especially for mixed or unknown hardware trace patterns. Its performance at low proportions (2%-5% coverage at 1%-2%) is acceptable as a general-purpose method, and its simplicity ensures it will not bottleneck tracing. However, for workloads with predictable patterns such as periodic loops or hotspots, a pattern-aware switch to Cluster or Adaptive sampling could improve coverage without sacrificing speed. If profiling reveals pattern-specific deficiencies, Adaptive sampling should be implemented.</p>
+<h2 id="bandwidth-and-footprint-footprint-growth-correlation">Bandwidth and Footprint/Footprint Growth Correlation</h2>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/pim-offload/bandwidth-vs-footprint.png" alt="Bandwidth vs Footprint" /></p>
+<p>Memory bandwidth and footprint (F) or footprint growth (ΔF) show little correlation across general workloads, as F reflects capacity. In UPMEM HPC tests (Vector Addition), a weak positive link (0.24) emerged between bandwidth and ΔF when F exceeded cache or used sequential access, hitting UPMEM’s 50 GB/s cap. The takeaway is that PIM friendliness metrics had to be checked for correlation to improve the linear model results.</p>
+<h1 id="what-was-surprising">What Was Surprising</h1>
+<p>Comment from Noah:</p>
+<blockquote>
+<p>“Reality is more robust than academia led me to believe. I thought that picking specific methods like Louvain or Leiden, linear regression or XGBoost, uniform or adaptive sampling would make or break the results, but the less complicated methods did just fine.”</p>
+</blockquote>
+<h1 id="future-extensions">Future Extensions</h1>
+<h2 id="model">Model</h2>
+<ul>
+<li>Improve model iteratively</li>
+<li>Measure the accuracy of model</li>
+<li>Implement as a runtime library</li>
+</ul>
+<h2 id="implement-remaining-steps">Implement remaining steps</h2>
+<ul>
+<li>Automatically compile DPU binary</li>
+<li>Create combined host+DPU fat binary</li>
+</ul>
+<h2 id="benchmarks-1">Benchmarks</h2>
+<ul>
+<li>Evaluate remaining workloads from SimplePIM paper</li>
+<li>Repeat this on real-world applications</li>
+</ul>
+<h1 id="conclusion">Conclusion</h1>
+<p>In conclusion, we have presented the idea of automatically detecting memory intensive parts of a program and proposed a cost model that can be used to select which of those memory intensive parts need to be offloaded to a PIM device. In addition, we have explored various memory metrics and graph clustering algorithms to find a suitable candidate that can capture PIM memory characteristics. Finally, we have evaluated our approach on three different representative benchmarks, showing speedup of up to 1.3x.</p>
+<h1 id="references">References</h1>
+<ol>
+<li><a href="https://arxiv.org/pdf/2012.03112">A Modern Primer on Processing-In-Memory</a></li>
+<li><a href="https://arxiv.org/abs/2105.03814">Benchmarking a New Paradigm: An Experimental Analysis of a Real Processing-in-Memory Architecture</a></li>
+<li><a href="https://dl.acm.org/doi/10.1109/PACT58117.2023.00017">SimplePIM: A Software Framework for Productive and Efficient Processing-in-Memory</a></li>
+<li><a href="https://ieeexplore.ieee.org/document/9912656">MemGaze: Rapid and Effective Load-Level Memory Trace Analysis</a></li>
+<li><a href="https://www.upmem.com/developer/">UPMEM SDK</a></li>
+</ol>
+<h1 id="division-of-responsibilities">Division of Responsibilities</h1>
+<ul>
+<li>Nanda: Initial project setup, design, implementation and evaluation</li>
+<li>Noah: Constructing/investigating cost model, PIM-friendly metrics and evaluation</li>
+<li>Both of us equally contributed to slides and blog post write up.</li>
+</ul>
+
+  <footer>
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

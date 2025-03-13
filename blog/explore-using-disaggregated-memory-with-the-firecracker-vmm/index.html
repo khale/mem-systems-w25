@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Exploring Disaggregated Memory Performance with Firecracker VMM</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Exploring Disaggregated Memory Performance with Firecracker VMM">
+<meta property="og:description"
+    content="Introduction
+This project aims to test and compare aggregated and disaggregated memory performance when using Firecracker VMM to run virtual machines. This topic was of interest to the group because as programs get larger and memory becomes the bottleneck, disaggregated memory will become more common. Firecracker is a popular tool at the moment because of its ability to rapidly deploy Micro Virtual Machines due to it beinng Virutal Machine Monitor (VMM). Our research sought to combine the fields of disaggregated memory and Virtual Machines (VM). However, due to time and skill constraints, the project became more limited in scope. The new aim of the project was to compare the memory performance of benchmarks in a local machine versus in a Firecracker VMM to facilitate a discussion between the benefits and drawbacks of virtual machines. We expected that the local machine would have better memory performance than Firecracker because there are more overheads. We will also provide a proposal for how to attempt to implement disaggregated memory in Firecracker for exploring this topic more.
+Implementation
+The implementation for this project started with the standard version of Firecracker, which will be the base case for this project. Firecracker was built onto a local machine using the file provided on GitHub here. The local machine used to run the Firecracker VMM is a Lenovo LOQ 15APH8 laptop that contains:">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>Exploring Disaggregated Memory Performance with Firecracker VMM</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Gabriel Rodgers,
+      
+        Sami Aljabery,
+      
+        Rabecka Moffit
+      
+      <span>
+    
+    <time datetime="2025-03-12">
+      March 12, 2025
+    </time>
+  </p>
+  <h2 id="introduction">Introduction</h2>
+<p>This project aims to test and compare aggregated and disaggregated memory performance when using Firecracker VMM to run virtual machines. This topic was of interest to the group because as programs get larger and memory becomes the bottleneck, disaggregated memory will become more common. Firecracker is a popular tool at the moment because of its ability to rapidly deploy Micro Virtual Machines due to it beinng Virutal Machine Monitor (VMM). Our research sought to combine the fields of disaggregated memory and Virtual Machines (VM). However, due to time and skill constraints, the project became more limited in scope. The new aim of the project was to compare the memory performance of benchmarks in a local machine versus in a Firecracker VMM to facilitate a discussion between the benefits and drawbacks of virtual machines. We expected that the local machine would have better memory performance than Firecracker because there are more overheads. We will also provide a proposal for how to attempt to implement disaggregated memory in Firecracker for exploring this topic more.</p>
+<h2 id="implementation">Implementation</h2>
+<p>The implementation for this project started with the standard version of Firecracker, which will be the base case for this project. Firecracker was built onto a local machine using the file provided on GitHub <a href="https://github.com/firecracker-microvm/firecracker">here</a>. The local machine used to run the Firecracker VMM is a <strong>Lenovo LOQ 15APH8 laptop</strong> that contains:</p>
+<ul>
+<li><strong>16 GiB of memory</strong></li>
+<li><strong>1.5 TB disk capacity</strong></li>
+<li><strong>AMD Ryzen 7 7840HS with Radeon 780M graphics</strong></li>
+<li><strong>Nvidia GeForce RTX 4050 Laptop GPU</strong></li>
+<li><strong>Ubuntu 24.04.02 LTS (64-bit)</strong>, which is compatible with Firecracker’s requirements.</li>
+</ul>
+<p>The common setup of Firecracker requires Docker and Bash. We started with a basic <code>config.json</code> provided on the Firecracker GitHub. Due to technical issues with KVM access, we used a configured file alongside a given bin (<code>hello-vmlinux.bin</code>) and rootfs (<code>hello-rootfs.ext4</code>). These two files represent the kernel image and the root filesystem image, both essential for launching Firecracker.</p>
+<p>In the <code>my_vm_config.json</code> file, these files were configured. Other configurations specified:</p>
+<ul>
+<li><strong>vCPU count:</strong> 2</li>
+<li><strong>Memory size:</strong> 512 MiB</li>
+</ul>
+<p>To launch Firecracker, we used the following command:</p>
+<pre data-lang="bash" style="background-color:#ffffff;color:#303030;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#f0523f;">sudo</span><span> firecracker</span><span style="color:#f0523f;"> --no-seccomp --config-file</span><span> my_vm_config.json  
+</span></code></pre>
+<p>Once running, we gathered system specifications:</p>
+<ul>
+<li><strong>CPU:</strong> Two AMD Epyc processors with two cores each.</li>
+<li><strong>OS:</strong> Alpine Linux 3.8, running on Kernel 4.14.55-84.37.amzn2.x86_64.</li>
+<li><strong>Memory:</strong> 501.8 MB (501852 KB).</li>
+</ul>
+<p>The next step was to mount the STREAM benchmark executable. The VM retrieves data from a virtual disk, which serves as an init file containing necessary information to start a VM.
+We decided to use the benchmark STREAM because it is a simple benchmark that measures sustainable main memory bandwidth in MB/s and the corresponding computation rate for simple vector kernels. Once the VM config file structure contained the compiled file, the benchmark was able to be run within the virtual machine and test the memory bandwidth. It’s important to note that for the benchmark to work on the firecracker VMM, it needed to be statically compiled. For better results, we also ran the benchmark on the local machine that ran Firecracker. The benchmark program was obtained <a href="https://www.cs.virginia.edu/stream/">here</a>.</p>
+<h2 id="results">Results</h2>
+<p>Using the STREAM benchmark, we ran 5 trials on each system to understand performance trends. The benchmark evaluates memory bandwidth and computation across four functions:</p>
+<ul>
+<li><strong>Copy</strong>: Measures memory read and write.</li>
+<li><strong>Scale</strong>: Measures how memory bandwidth handles arithmetic operations.</li>
+<li><strong>Add</strong>: Measures multi-source memory bandwidth.</li>
+<li><strong>Triad</strong>: Measures a mixture of memory patterns and computation.</li>
+</ul>
+<p>These assess data transfer performance, computational efficiency, parallel memory workloads, and overall memory performance. Figure 1 goes over “Best rate (MB/s)”, Figure 2 goes over “Average time (ms)”, Figure 3 goes over “minimum time (ms)”, and Figure 4 goes over “maximum time (ms)”. In the trials, we found that the local machine performed better than the firecracker VMM. In the figures below, we see that the local machine takes less time and has a higher rate of MB/s.</p>
+<h3 id="figures">Figures:</h3>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/explore-using-disaggregated-memory-with-the-firecracker-vmm/fig1.png" alt="Figure1" /><br />
+Figure 1: STREAM’s evaluation of Best Rate (MB/s) on both Firecracker and Local Machine.</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/explore-using-disaggregated-memory-with-the-firecracker-vmm/fig2.png" alt="Figure2" /><br />
+Figure 2: STREAM’s evaluation of Average Time (ms) on both Firecracker and Local Machine.</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/explore-using-disaggregated-memory-with-the-firecracker-vmm/fig3.png" alt="Figure3" />
+Figure 3: STREAM’s evaluation of Minimum Time (ms) on both Firecracker and Local Machine.</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/explore-using-disaggregated-memory-with-the-firecracker-vmm/fig4.png" alt="Figure4" />
+Figure 4: STREAM’s evaluation of Maximum Time (ms) on both Firecracker and Local Machine.</p>
+<p>Taking the average of all four functions of STREAM, we found:</p>
+<ul>
+<li>Best Rate (MB/s): STREAM has 7.2% less bandwidth on Firecracker compared to the local machine.</li>
+<li>Average Time (s): STREAM is 6.9% slower on Firecracker than on the local machine on average.</li>
+<li>Minimum Time (s): STREAM’s minimum time benchmark is 7.8% slower on Firecracker than the local machine.</li>
+<li>Maximum Time (s): STREAM’s maximum time benchmark is 9.7% slower on Firecracker than the local machine.</li>
+</ul>
+<h2 id="issues">Issues</h2>
+<p>We had many challenges over the course of this project which started with finding a machine to run linux. Originally our team wanted to use an Oregon State University (OSU) owned machine but there were many regulations with this machine. All programs or downloads had to be added through OSU’s Information Technology (IT) department so this had week turn around times between a program request and the implementation. For security reasons, OSU IT would not download Docker which made Firecracker unusable. At this point, our team had to pivot from using an OSU owned machine to a personal machine that has a Linux Operating System (OS) because this is the only allowed OS for Firecracker.</p>
+<p>Our next challenge was to get a custom file structure for the VM setup with the compiled benchmark files using Docker. We did not need to use Docker even though the documentation says that Docker is required. This was an issue we were able to overcome.</p>
+<p>Implementing disaggregated memory was difficult as it required creating virtual nodes that would simulate the pooled memory. With the switch to a personal computer, the process became difficult to set up, and unfortunately left out of the testing. Another issue was that Firecracker is written in Rust but none of the project members have any prior experience with Rust. An incorrect assumption our team made was that Rust would be an approachable language that we would have the time and resources to learn. This was not the case and posed a more significant challenge than we had anticipated.</p>
+<h2 id="next-steps">Next Steps</h2>
+<p>Our proposal for implementing disaggregated memory support in Firecracker involves modifying several memory-related files in the Firecracker VMM kernel. These files are shown in the following directory map of Firecracker, where three asterisked-files are those that should be modified to support disaggregated memory:</p>
+<pre style="background-color:#ffffff;color:#303030;"><code><span>firecracker
+</span><span>├── CHANGELOG.md
+</span><span>├── CHARTER.md
+</span><span>├── CODE_OF_CONDUCT.md
+</span><span>├── CONTRIBUTING.md
+</span><span>├── CREDITS.md
+</span><span>├── Cargo.lock
+</span><span>├── Cargo.toml
+</span><span>├── DEPRECATED.md
+</span><span>├── FAQ.md
+</span><span>├── LICENSE
+</span><span>├── MAINTAINERS.md
+</span><span>├── NOTICE
+</span><span>├── PGP-KEY.asc
+</span><span>├── README.md
+</span><span>├── SECURITY.md
+</span><span>├── SPECIFICATION.md
+</span><span>├── THIRD-PARTY
+</span><span>├── deny.toml
+</span><span>├── docs
+</span><span>├── pre-commit
+</span><span>├── resources
+</span><span>│   ├── chroot.sh
+</span><span>│   ├── guest_configs
+</span><span>│   ├── overlay
+</span><span>│   ├── rebuild.sh
+</span><span>│   └── seccomp
+</span><span>│       ├── ***aarch64-unknown-linux-musl.json***
+</span><span>│       ├── unimplemented.json
+</span><span>│       └── ***x86_64-unknown-linux-musl.json***
+</span><span>├── rusty-hook.toml
+</span><span>├── src
+</span><span>│   ├── acpi-tables
+</span><span>│   ├── clippy-tracing
+</span><span>│   ├── cpu-template-helper
+</span><span>│   ├── firecracker
+</span><span>│   ├── jailer
+</span><span>│   ├── log-instrument
+</span><span>│   ├── log-instrument-macros
+</span><span>│   ├── rebase-snap
+</span><span>│   ├── seccompiler
+</span><span>│   ├── snapshot-editor
+</span><span>│   ├── utils
+</span><span>│   └── vmm
+</span><span>│       ├── benches
+</span><span>│       ├── Cargo.toml
+</span><span>│       ├── src
+</span><span>│       │   ├── acpi
+</span><span>│       │   ├── arch
+</span><span>│       │   │   ├── aarch64
+</span><span>│       │   │   │   ├── cache_info.rs
+</span><span>│       │   │   │   ├── fdt.rs
+</span><span>│       │   │   │   ├── gic
+</span><span>│       │   │   │   ├── ***layout.rs***
+</span><span>│       │   │   │   ├── mod.rs
+</span><span>│       │   │   │   ├── output_GICv2.dtb
+</span><span>│       │   │   │   ├── output_GICv3.dtb
+</span><span>│       │   │   │   ├── output_initrd_GICv2.dtb
+</span><span>│       │   │   │   ├── output_initrd_GICv3.dtb
+</span><span>│       │   │   │   ├── regs.rs
+</span><span>│       │   │   │   └── vcpu.rs
+</span><span>│       │   │   ├── mod.rs
+</span><span>│       │   │   └── x86_64
+</span><span>│       │   │       ├── cpu_model.rs
+</span><span>│       │   │       ├── gdt.rs
+</span><span>│       │   │       ├── gen
+</span><span>│       │   │       ├── interrupts.rs
+</span><span>│       │   │       ├── ***layout.rs***
+</span><span>│       │   │       ├── mod.rs
+</span><span>│       │   │       ├── mptable.rs
+</span><span>│       │   │       ├── msr.rs
+</span><span>│       │   │       └── regs.rs
+</span><span>│       │   ├── builder.rs
+</span><span>│       │   ├── cpu_config
+</span><span>│       │   ├── device_manager
+</span><span>│       │   ├── devices
+</span><span>│       │   ├── dumbo
+</span><span>│       │   ├── gdb
+</span><span>│       │   ├── io_uring
+</span><span>│       │   ├── lib.rs
+</span><span>│       │   ├── logger
+</span><span>│       │   ├── mmds
+</span><span>│       │   ├── persist.rs
+</span><span>│       │   ├── rate_limiter
+</span><span>│       │   ├── resources.rs
+</span><span>│       │   ├── rpc_interface.rs
+</span><span>│       │   ├── seccomp.rs
+</span><span>│       │   ├── signal_handler.rs
+</span><span>│       │   ├── snapshot
+</span><span>│       │   ├── test_utils
+</span><span>│       │   ├── utils
+</span><span>│       │   ├── vmm_config
+</span><span>│       │   └── vstate
+</span><span>│       └── tests
+</span><span>├── tests
+</span><span>└── tools
+</span></code></pre>
+<p>Purposes of each file and why they would need to be modified to support disaggregated memory:</p>
+<ul>
+<li>
+<p>firecracker/resources/seccomp/x86_64-unknown-linux-musl.json</p>
+</li>
+<li>
+<p>firecracker/resources/seccomp/aarch64-unknown-linux-musl.json</p>
+<ul>
+<li>These files contain the syscall handlers used for x86_64 and aarch64 architectures. Disaggregated-related syscalls would be different from regular local memory syscalls (when using RDMA), so that is why we believe these files would need to be modified to support those different syscalls (depending on architecture of course). This of course depends on the disaggregated memory implementation in the kernel - but if new syscalls were created to support disaggregated memory in the kernel, then these files would need to be modified to support those added syscalls. Note that with CXL disaggregated memory these files would remain the same, as CXL uses the same syscalls as regular local memory.</li>
+</ul>
+</li>
+<li>
+<p>firecracker/src/vmm/src/arch/x86_64/layout.rs</p>
+</li>
+<li>
+<p>firecracker/src/vmm/src/arch/aarch64/layout.rs</p>
+<ul>
+<li>These files contain the address maps of x86_64 and aarch64 architectures. They do not support disaggregated memory in these address maps. For CXL disaggregated memory support, we propose adding CXL memory mappings (start and size) into these files. For RDMA disaggregated memory support, we propose adding locally pinned RDMA memory into these files.</li>
+</ul>
+</li>
+</ul>
+<p>The above files are what we would change to support disaggregated memory in Firecracker. For RDMA, the number of files needed to be modified would likely be larger than the subset that we highlight due to the fact that memory accesses via RDMA would need completely different interfaces than the regular POSIX-compliant syscalls used for local memory accesses. For CXL, the number of files needed to be modified would also likely be larger than the subset we highlight due to needing to use different names for CXL memory rather than local memory to prevent performance hits. It would be beneficial in that case to have distinct labels for local memory and CXL memory, where CXL memory would be used when local memory is low. This would require changes in files that use memory as well as the <code>layout.rs</code> files that we highlighted. The layout and syscall json files that we mention are likely just a starting point to get disaggregated memory supported in Firecracker.</p>
+<p>Once the above files, and possibly others, are modified we would use firecracker to launch a virtual machine that supported disaggregated memory. Since we did not have an available system that supports disaggregated memory, we had planned to utilize server space through CloudLab. One server would support the Firecracker kernel with some memory to approximate a computer and another server would contain entirely memory to approximate a remote memory bank. The test would involve running memory benchmarks with the programs entirely contained in the first server versus with programs having spread their memory between the two servers. Ultimately, tests where entire programs won’t fit in the memory available on the first server would give a better idea of the performance of disaggregated memory because the program has to use this structure rather than arbitrarily using this structure. The benchmarks that we had picked were Parsec, NAS Parallel Benchmark, Graph500, Intel Memory Latency Checker, and STREAM.</p>
+<hr />
+<h2 id="conclusion">Conclusion</h2>
+<p>This project went through several iterations before completion. The goal of the first version of this project was to modify the Firecracker VMM source code to provide disaggregated memory support and use performance benchmarks to test this version on CloudLab machines - comparing local aggregated memory performance to disaggregated memory performance. This version was far too ambitious for a single term, so the project’s scope was decreased. This second version of the project aimed to test performance benchmarks running in Firecracker VMM and natively and to provide a short proposal on how to support disaggregated memory in Firecracker VMM. We used the STREAM benchmark to test performance differences between these two options because of the relative ease of compilation of STREAM, and we successfully showed that Firecracker has a small hit (around 10%) to performance when compared to native performance. Our proposal states that for disaggregated memory support, the layout.rs files would need to be modified for CXL (and locally-pinned RDMA memory) disaggregated memory support. It also requires that the syscall json files would need to be modified to support RDMA syscalls. Lastly, our proposal states that more files would need to be changed to support switching between disaggregated memory and local memory for optimal performance.</p>
+<h3 id="key-findings">Key Findings:</h3>
+<ul>
+<li>Firecracker incurs a small (~10%) performance hit compared to native execution.</li>
+<li>Modifications required for disaggregated memory:
+<ul>
+<li>Modify <code>layout.rs</code> files for CXL/RDMA memory support.</li>
+<li>Modify syscall JSON files for RDMA syscalls.</li>
+<li>Optimize memory allocation to distinguish between local and disaggregated memory.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://www.cs.virginia.edu/stream/FTP/Code/">STREAM Benchmark</a></li>
+<li><a href="https://www.amd.com/en/developer/zen-software-studio/applications/spack/stream-benchmark.html">AMD STREAM Benchmark</a></li>
+<li><a href="https://firecracker-microvm.github.io/">Firecracker Documentation</a></li>
+<li><a href="https://github.com/firecracker-microvm/firecracker">Firecracker GitHub</a></li>
+<li><a href="https://github.com/firecracker-microvm/firecracker/blob/main/docs/rootfs-and-kernel-setup.md">Firecracker Kernel Setup</a></li>
+</ul>
+
+  <footer>
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

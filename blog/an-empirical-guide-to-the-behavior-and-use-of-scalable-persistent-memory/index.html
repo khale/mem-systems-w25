@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: An Empirical Guide to the Behavior and Use of Scalable Persistent Memory</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="An Empirical Guide to the Behavior and Use of Scalable Persistent Memory">
+<meta property="og:description"
+    content="Introduction
+This blog discusses “An Empirical Guide to the Behavior and Use of Scalable Persistent Memory.” This work stands out as the first real-world performance benchmark of Intel’s Optane DIMMs, a groundbreaking technology that brings scalable, byte-addressable persistent memory to the computing landscape. Designed to bridge the gap between the fast but volatile DRAM and the slower, non-volatile SSDs, Optane DIMMs promised a new era of memory systems after nearly a decade of anticipation. The paper dives into how these devices actually perform, revealing surprises that upend assumptions from years of research based on emulated setups like DRAM stand-ins. Far from being just “slower DRAM,” Optane exhibits unique quirks that demand fresh thinking. Its authors set out not only to measure Optane’s behavior but also to deliver practical guidelines for software developers to optimize their code for this novel hardware. This blog unpacks their findings, shedding light on a technology that’s as complex as it is promising.
+Background and Context
+Persistent memory represents a transformative leap in the memory hierarchy, blending traits that set it apart from traditional technologies. Unlike DRAM, which loses its contents when power is cut, persistent memory is non-volatile, retaining data even after shutdowns. It’s denser too, packing more storage capacity into less space at a lower cost per gigabyte than DRAM. This makes it a versatile player, sitting between DRAM’s speed and SSDs’ persistence. Its byte-addressable nature—allowing direct access to individual memory locations—unlocks a range of use cases: speeding up database transaction logging and in-memory databases, providing fast persistent caching for high-performance computing (HPC), boosting memory-intensive virtualization in cloud setups, and accelerating storage as a cache or tiered layer.
+For over a decade, researchers have been gearing up for persistent memory’s arrival, but without real hardware like Intel’s Optane DIMMs, they relied on emulations—often using DRAM tweaked to mimic non-volatile memory (NVM). These setups, sometimes paired with artificial delays or NUMA effects, fueled speculation about how NVM would behave. However, powered by 3D XPoint technology (a joint Intel-Micron innovation), Optane does not behave as expected. Unlike DRAM’s straightforward capacitor-based design, 3D XPoint introduces “second-order changes”—subtle, cascading effects in latency, bandwidth, and concurrency that add a new layer of complexity. Where DRAM emulation suggested predictable performance, Optane’s real-world behavior defies those models, revealing quirks that prior speculations couldn’t anticipate. This shift challenges the research community to rethink how software interacts with memory, setting the stage for the detailed benchmarks and insights this paper delivers.
+Keywords">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>An Empirical Guide to the Behavior and Use of Scalable Persistent Memory</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Shuxian Qin (Blogger) ,
+      
+        Shuyi Zheng (Scribe) ,
+      
+        Noah Bean (Leader) 
+      
+      <span>
+    
+    <time datetime="2025-02-19">
+      February 19, 2025
+    </time>
+  </p>
+  <h2 id="introduction">Introduction</h2>
+<p>This blog discusses “An Empirical Guide to the Behavior and Use of Scalable Persistent Memory.” This work stands out as the first real-world performance benchmark of Intel’s Optane DIMMs, a groundbreaking technology that brings scalable, byte-addressable persistent memory to the computing landscape. Designed to bridge the gap between the fast but volatile DRAM and the slower, non-volatile SSDs, Optane DIMMs promised a new era of memory systems after nearly a decade of anticipation. The paper dives into how these devices actually perform, revealing surprises that upend assumptions from years of research based on emulated setups like DRAM stand-ins. Far from being just “slower DRAM,” Optane exhibits unique quirks that demand fresh thinking. Its authors set out not only to measure Optane’s behavior but also to deliver practical guidelines for software developers to optimize their code for this novel hardware. This blog unpacks their findings, shedding light on a technology that’s as complex as it is promising.</p>
+<h2 id="background-and-context">Background and Context</h2>
+<p>Persistent memory represents a transformative leap in the memory hierarchy, blending traits that set it apart from traditional technologies. Unlike DRAM, which loses its contents when power is cut, persistent memory is non-volatile, retaining data even after shutdowns. It’s denser too, packing more storage capacity into less space at a lower cost per gigabyte than DRAM. This makes it a versatile player, sitting between DRAM’s speed and SSDs’ persistence. Its byte-addressable nature—allowing direct access to individual memory locations—unlocks a range of use cases: speeding up database transaction logging and in-memory databases, providing fast persistent caching for high-performance computing (HPC), boosting memory-intensive virtualization in cloud setups, and accelerating storage as a cache or tiered layer.</p>
+<p>For over a decade, researchers have been gearing up for persistent memory’s arrival, but without real hardware like Intel’s Optane DIMMs, they relied on emulations—often using DRAM tweaked to mimic non-volatile memory (NVM). These setups, sometimes paired with artificial delays or NUMA effects, fueled speculation about how NVM would behave. However, powered by 3D XPoint technology (a joint Intel-Micron innovation), Optane does not behave as expected. Unlike DRAM’s straightforward capacitor-based design, 3D XPoint introduces “second-order changes”—subtle, cascading effects in latency, bandwidth, and concurrency that add a new layer of complexity. Where DRAM emulation suggested predictable performance, Optane’s real-world behavior defies those models, revealing quirks that prior speculations couldn’t anticipate. This shift challenges the research community to rethink how software interacts with memory, setting the stage for the detailed benchmarks and insights this paper delivers.</p>
+<h2 id="keywords">Keywords</h2>
+<ul>
+<li><strong>Persistent Memory</strong>: A type of memory that retains data even after power is lost, combining non-volatility with high density and often byte-addressable access, bridging the gap between DRAM and SSDs.</li>
+<li><strong>Non-Volatile Memory (NVM)</strong>: Memory that preserves data without power, unlike volatile DRAM; includes technologies like flash and persistent memory like Optane.</li>
+<li><strong>Optane DIMM</strong>: Intel’s scalable persistent memory module, built on 3D XPoint tech, offering byte-addressable, non-volatile storage in DIMM form for consumer and data center use.</li>
+<li><strong>3D XPoint</strong>: A non-volatile memory technology developed by Intel and Micron, using a crosspoint structure with resistive switching (not transistors) for high speed and endurance.</li>
+<li><strong>App Direct Mode</strong>: An Optane operating mode exposing it as a separate persistent memory device, managed by software for direct access, without DRAM caching.</li>
+<li><strong>Memory Mode</strong>: An Optane mode using it as volatile main memory with DRAM as a transparent cache, expanding capacity without persistence.</li>
+<li><strong>Asynchronous DRAM Refresh (ADR)</strong>: Intel’s feature ensuring data in the memory controller’s write queues (WPQs) is flushed to persistent media during power loss, within a short hold-up time.</li>
+<li><strong>Write Amplification</strong>: The increase in data written to memory beyond what the application requests, often due to block-sized updates (e.g., Optane’s 256B granularity).</li>
+<li><strong>Non-Temporal Store (ntstore)</strong>: A CPU instruction bypassing the cache to write directly to memory, useful for large sequential writes to avoid cache pollution.</li>
+<li><strong>iMC (Integrated Memory Controller)</strong>: The CPU component managing memory access, including read/write queues (RPQs/WPQs), critical for Optane’s ADR domain.</li>
+<li><strong>Wear Leveling</strong>: A technique to distribute writes evenly across memory cells, preventing overuse and extending lifespan, potentially causing Optane’s tail latency spikes.</li>
+<li><strong>CXL (Compute Express Link)</strong>: An emerging interconnect standard for coherent memory access, supporting persistent and disaggregated memory, seen as an Optane alternative.</li>
+<li><strong>1T1C (One Transistor, One Capacitor)</strong>: The basic cell design of DRAM, using a transistor-capacitor pair for each bit, contrasting with 3D XPoint’s resistive approach.</li>
+</ul>
+<h2 id="summary-of-the-paper">Summary of the Paper</h2>
+<h3 id="1-introduction">1. Introduction</h3>
+<p>The paper discusses the decade-long wait for scalable non-volatile memory (NVM), a technology researchers have speculated about since the early 2000s. Intel’s Optane DIMMs finally arrived in 2019, offering a real-world testbed to challenge those expectations. The authors set out to measure how this persistent memory performs, aiming to replace guesswork from emulated setups with data.</p>
+<h3 id="2-background-and-methodology">2. Background and Methodology</h3>
+<p>This section discusses how optane works. It plugs into Intel’s Cascade Lake processors (24 cores, dual-socket, 3 TB total Optane across 2 sockets with 6 channels each). Unlike DRAM, Optane uses 256B blocks for internal writes, managed by an on-DIMM controller (XPController) and the CPU’s integrated memory controller (iMC), which handles write pending queues (WPQs). The Asynchronous DRAM Refresh (ADR) feature ensures data in WPQs persists during power loss. The study focuses on App Direct mode—where Optane acts as a standalone persistent device—running on Fedora 27 with a custom kernel, testing 384 GB DRAM alongside 256 GB Optane DIMMs per channel.</p>
+<h3 id="3-performance-characterization">3. Performance Characterization</h3>
+<p>Read latency clocks in at 2x-3x higher than DRAM, with random reads hit harder than sequential ones due to the 256B XPBuffer’s limits. Tail latency spikes—up to 50 µs, 100x the norm—pop up unpredictably, likely from wear leveling. Bandwidth tells a split story: reads scale well with threads (up to 16), but writes plateau early (around 4-12 threads) and dip with more concurrency, far less scalable than DRAM’s steady climb. Small random writes tank performance, while sequential ones hold up better.</p>
+<h3 id="4-comparison-to-emulation">4. Comparison to Emulation</h3>
+<p>Past NVM studies used DRAM with delays or NUMA tricks, predicting Optane as “slower DRAM.” Real tests flip that script. In RocksDB, emulation favored fine-grained persistence (moving the memtable to NVM), but on Optane, the FLEX approach (sequential write-ahead logging) wins by 10%, thanks to its dislike for small random writes. Emulated guesses missed Optane’s nuanced behavior.</p>
+<h3 id="5-best-practices-for-optane-dimms">5. Best Practices for Optane DIMMs</h3>
+<p>The paper distills four guidelines from microbenchmarks: avoid small random writes under 256B (they amplify due to block size), use non-temporal stores (ntstores) for large sequential writes (bypassing cache boosts bandwidth), limit threads hitting one DIMM (more than 4-12 thrash the XPBuffer and iMC), and steer clear of NUMA accesses (remote hits crater performance, up to 30x worse than DRAM’s 3.3x).</p>
+<h3 id="6-discussion">6. Discussion</h3>
+<p>Looking ahead, the authors muse on how these tips might evolve. Extended ADR (eADR), including caches in the persistent domain, could nix ntstore needs. CXL might shift persistent memory paradigms, while bigger buffers or smaller blocks (unlike 256B) could tweak trade-offs—though power limits complicate that. The guidelines offer a roadmap for future NVM, even if Optane’s specifics change.</p>
+<h3 id="7-related-work">7. Related Work</h3>
+<p>Before Optane, NVM research relied on emulation. These shaped file systems, transactional models, and data structures, but lacked real hardware validation. This paper marks a pivot to tangible benchmarks.</p>
+<h3 id="8-conclusion">8. Conclusion</h3>
+<p>Optane DIMMs emerge slower (2x-3x DRAM latency) and more complex than expected, with thread scaling and write granularity tripping up performance. Coders bear the burden of optimization. As the first real benchmark of persistent memory, this study swaps speculation for data, spotlighting Optane’s promise and pitfalls.</p>
+<h2 id="important-results-and-what-they-mean">Important Results and What They Mean</h2>
+<p><strong>Emulation Errors</strong>: For years, researchers emulated non-volatile memory (NVM) with DRAM, tweaking it to guess how Optane might behave. Real tests cleared up this assumption.</p>
+<p><strong>Latency/Bandwidth</strong>: Read latency hits 2x-3x higher than DRAM, with random reads suffering more than sequential ones due to internal buffering limits. Write bandwidth lags too, far below DRAM’s, and scalability takes a hit: while DRAM’s bandwidth climbs steadily with threads, Optane peaks at 4-12 threads (reads at 16, writes at 4) then drops off—a stark contrast to DRAM’s monotonic rise.</p>
+<p><strong>256B Granularity</strong>: Small random writes (under 256B) amplify—updating one byte means rewriting the whole block, slashing efficiency and bandwidth. Sequential writes, though, shine, aligning with the block size to minimize overhead. This split explains why random access patterns tank performance while sequential ones improve performance.</p>
+<p><strong>Tail Latency</strong>: Reliability is reduced by rare tail latency spikes—up to 50 µs, 100x the typical latency. These outliers, likely from wear leveling or internal remapping, are sparse (0.006% of accesses) but cause serious problems. For systems needing predictability, like databases or real-time apps, this is a red flag.</p>
+<h2 id="strengths-and-weaknesses-of-the-paper">Strengths and Weaknesses of the Paper</h2>
+<h3 id="strengths">Strengths</h3>
+<p><strong>First Real Optane Benchmark</strong>: This paper stands out as the first benchmark of Intel’s Optane DIMMs with actual hardware.</p>
+<p><strong>Practical Guidelines with Case Studies</strong>: Beyond measurements, it offers actionable advice—avoid small writes, limit threads, use ntstores—backed by real-world tweaks.</p>
+<h3 id="weaknesses">Weaknesses</h3>
+<p><strong>Limited Testing Scope</strong>: The paper’s focus narrows to RocksDB and NOVA, with testing confined to App Direct mode. This leaves Memory Mode and broader applications unexplored, raising questions about how well the findings generalize across diverse workloads or setups.</p>
+<p><strong>No Cost-Benefit Analysis or NVM Comparisons</strong>: It skips the economics—Optane’s cost “dramatically increases” compared to DRAM or SSDs, but there’s no breakdown of trade-offs or benefits to justify it. Nor does it stack Optane against other NVM technologies, leaving a gap in context.</p>
+<h2 id="class-discussion">Class Discussion</h2>
+<p><strong>Capacitors in 3D XPoint</strong>: The 3D XPoint explainer video sparked curiosity. Unlike DRAM’s 1T1C (one transistor, one capacitor) simplicity, 3D XPoint’s crosspoint structure ditches transistors for resistive switching, with capacitors likely aiding dense packing and fast bit access.</p>
+<p><strong>256B Block Size</strong>: Why 256B? Is it baked into Optane’s DNA or a deliberate pick? Eugene wondered if smaller blocks (say, 64B) could ease small-write woes—random writes under 256B tank performance due to whole-block updates. Kyle Hale guessed 256B strikes a “good medium ground,” balancing efficiency and complexity. Smaller blocks might cut amplification but could spike power demands or shrink density, a trade-off Optane’s designers might have dodged.</p>
+<p><strong>NUMA Puzzle</strong>: Optane’s NUMA penalty—up to 30x bandwidth drop vs. DRAM’s 3.3x. Class eyed iMC contention: mixed read-write loads (like 3:1 ratios) clog short queues, worse with remote nodes. Eugene suggested it’s less iMC and more NVDIMM thrashing, but DRAM handles NUMA better.</p>
+<p><strong>Thread Scaling</strong>: Bandwidth peaking at 4-12 threads then dropped. Eugene blamed XPBuffer thrashing—multiple threads trash its 16KB write-merging space. Class added iMC queues: slow Optane drainage blocks them, slashing throughput. Is it buffer size, queue depth, or both? How do we keep threads from tripping over each other?</p>
+<p><strong>Interconnect Efficiency</strong>: Optane’s interconnect got scrutiny. How does it handle mixed read-write access? Class asked about gigabytes-per-second graphs (assuming bandwidth), wondering if it copes under chaos.</p>
+<p><strong>Commercial Fate</strong>: Intel’s 2022 Optane exit, after a $7B loss, hit hard. This was refered to as “swept under the rug.” Supply chain difficulty and high costs tanked it. Micron got out of persistent memory, but tinkering with persistent memory persists. CXL’s rising for persistent and disaggregated setups.</p>
+<p><strong>eADR Shift</strong>: eADR was brought up — cache-inclusive ADR from Intel’s 3rd-gen Xeons. It simplifies coding (no ntstores or flushes) and boosts bandwidth by keeping caches persistent. Class saw it easing Optane’s quirks.</p>
+<p><strong>Security Risks</strong>: DIMM theft was mentioned. If someone takes an Optane DIMM, data’s readable. How big of a problem is this? For databases or HPC, it’s a dealbreaker; consumer use, maybe less so. Why no mitigation discussion in the paper?</p>
+<p><strong>Hybrid Potential</strong>: The class pitched DRAM (1T1C speed) plus Optane (persistence). Class liked the idea: DRAM for fast random access, Optane for big persistent stores.</p>
+<h2 id="sources">Sources:</h2>
+<ul>
+<li>
+<p>An Empirical Guide to the Behavior and Use of Scalable Persistent Memory: <a href="https://www.usenix.org/conference/fast20/presentation/yang">http://web.cs.ucla.edu/~todd/research/isca12.pdf</a></p>
+</li>
+<li>
+<p>OSTEP Textbook Remzi Arpaci-Dusseau</p>
+</li>
+<li>
+<p>Computer Organization and Design RISC-V Edition The Hardware Software Interface 2nd Edition - December 11, 2020 Authors: David A. Patterson, John L. Hennessy</p>
+</li>
+<li>
+<p>Computer Architecture, Sixth Edition: A Quantitative Approach December 2017 Authors: John L. Hennessy, David A. Patterson</p>
+</li>
+</ul>
+<h2 id="generative-ai">Generative AI</h2>
+<ul>
+<li>Link to specific Tools: <a href="https://chatgpt.com/">https://chatgpt.com/</a> <a href="https://www.deepseek.com/">https://www.deepseek.com/</a> <a href="https://claude.ai">https://claude.ai</a> <a href="https://gemini.google.com/app">https://gemini.google.com/app</a></li>
+</ul>
+<table><thead><tr><th><strong>Metric</strong></th><th><strong>ChatGPT 4o (GPT-4o)</strong></th><th><strong>DeepSeek R1</strong></th><th><strong>Gemini 2.0 Flash</strong></th><th><strong>Claude 3.7 Sonnet</strong></th></tr></thead><tbody>
+<tr><td><strong>MMLU Accuracy</strong></td><td>88.7%</td><td>85%</td><td>80%</td><td>88%</td></tr>
+<tr><td><strong>TruthfulQA Accuracy</strong></td><td>65%</td><td>60%</td><td>55%</td><td>62%</td></tr>
+<tr><td><strong>HellaSwag Accuracy</strong></td><td>96%</td><td>94%</td><td>90%</td><td>95%</td></tr>
+<tr><td><strong>GSM8K Accuracy</strong></td><td>95%</td><td>92%</td><td>85%</td><td>94%</td></tr>
+<tr><td><strong>BBH Accuracy</strong></td><td>85%</td><td>75%</td><td>70%</td><td>85%</td></tr>
+<tr><td><strong>HumanEval Pass Rate</strong></td><td>85%</td><td>80%</td><td>75%</td><td>84%</td></tr>
+</tbody></table>
+<ul>
+<li><h3 id="key-observations">Key Observations</h3>
+</li>
+<li>
+<p><strong>ChatGPT 4o</strong> consistently performs at or near the top across all metrics, achieving the highest average score of 85.78%. It stands out in knowledge (MMLU), truthfulness (TruthfulQA), commonsense reasoning (HellaSwag), mathematical reasoning (GSM8K), and code generation (HumanEval), while tying for the lead in advanced reasoning (BBH). This broad excellence makes it the most well-rounded model among those analyzed.</p>
+</li>
+<li>
+<p><strong>Claude 3.7 Sonnet</strong> is a very close second with an average score of 84.67%. It matches ChatGPT 4o in advanced reasoning (BBH) and performs strongly in most areas, though it falls slightly behind in truthfulness (TruthfulQA) and code generation (HumanEval). Its near parity with ChatGPT 4o highlights its competitive edge.</p>
+</li>
+<li>
+<p><strong>DeepSeek R1</strong> secures a solid third place with an average score of 81.00%. It delivers competitive results across most metrics but lags in advanced reasoning (BBH) and truthfulness (TruthfulQA).</p>
+</li>
+<li>
+<p><strong>Gemini 2.0 Flash</strong> trails with an average score of 75.83%, likely due to its design as a faster, smaller model optimized for efficiency.</p>
+</li>
+<li>
+<p>This tool was used to help generate ideas for the outline, provide explanations of keywords, and offer feedback on specific prose.</p>
+</li>
+<li>
+<p>Generative AI tools are excellent tools for brainstorming, offering feedback, and providing explanations. These tools should not be trusted for accuracy. Any specific detail mentioned must be externally validated.</p>
+</li>
+<li>
+<p>Concrete example: changed “A memory type that holds data after power loss. Has high density and sits between DRAM and SSD.” to “A type of memory that retains data even after power is lost, combining non-volatility with high density and often byte-addressable access, bridging the gap between DRAM and SSDs.”</p>
+</li>
+<li>
+<p>Information given could be misleading. For example, the LLM claimed that a weakness of the paper was that “Intel axed Optane in 2022 after a $7B loss, signaling a “lack of profit” that the paper doesn’t address. This omission sidesteps a critical real-world angle—why a promising tech flopped commercially—limiting its forward-looking relevance.” However, this paper came out before Intel “axed” optane in 2022 so this weakness should not be fairly considered.</p>
+</li>
+</ul>
+
+  <footer>
+    
+    <p>[Noah Bean] is an undergraduate student studying Electrical and Computer Engineering at Oregon State University.</p>
+
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

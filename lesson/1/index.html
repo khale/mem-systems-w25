@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Welcome &amp; Overview</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 1:
+  Welcome &amp; Overview
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/1" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  
+  <li>
+    <a href="#tasks" class="icon due">tasks</a> due <strong>January 8</strong>
+  </li>
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical readings are marked with (*).</p>
+<h2 id="notes">Notes</h2>
+<ul>
+<li>
+<p>Welcome to ECE 4/599! I’m really excited to dive deep into some research with you all this quarter!</p>
+</li>
+<li>
+<p>Why are memory systems important, why do we care?</p>
+<ul>
+<li>Simply: store data</li>
+<li>But why is it challenging? Ultimately, physical constraints</li>
+<li>We can have large memories or fast memories, but not both. This means if we have a lot of data we need
+fast access to, we need to use careful engineering.</li>
+<li>Today’s workloads (e.g., AI) are memory hungry. They use a lot of data and need to crunch it quickly.</li>
+</ul>
+</li>
+<li>
+<p>How do we manage with disparate memory performance profiles?</p>
+<ul>
+<li>Hierarchies</li>
+<li>How to move between?</li>
+<li>How much should be automatic?</li>
+<li>How can we speculate?</li>
+<li>What is the correct granularity of access and transfer?</li>
+</ul>
+</li>
+<li>
+<p>Course overview and the <a href="https://khale.github.io/mem-systems-w25/syllabus/">syllabus</a>.</p>
+<ul>
+<li>Communication will be on Discord and on <a href="https://github.com/khale/mem-systems-w25/discussions">GitHub</a>.</li>
+<li>Class sessions will usually follow this structure:
+<ul>
+<li>First part:
+<ul>
+<li>I’ll do some traditional “lecturing” in class</li>
+<li>Some (but not all) sessions will include lessons that may or may not have associated tasks for you to complete.</li>
+</ul>
+</li>
+<li>Second part:
+<ul>
+<li>Everyone should read the relevant paper beforehand so we can have a good discussion. You’ll need to post a comment in the paper’s discussion thread on GitHub.</li>
+<li>The paper leader’s job is to present the paper using slides, guide the discussion, answer discussion questions on GitHub, and organize the lab to work on a collective blog post.</li>
+<li>The scribe takes notes from in-class discussions.</li>
+<li>The blogger summarizes the paper (using input from the paper leader’s notes, online and in-class discussions, and their own interpretations) into a technical blog post.</li>
+<li>The reviewer summarizes strengths and weaknesses of the paper.</li>
+<li>Remember to keep track of the <a href="https://khale.github.io/mem-systems-w25/schedule/">schedule</a>!</li>
+</ul>
+</li>
+<li>Hacking sessions: in some cases I will give you time during class to hack on your project with me around to help.</li>
+</ul>
+</li>
+<li>The <a href="https://khale.github.io/mem-systems-w25/syllabus/#research-project">course project</a>.</li>
+<li>Policies, academic integrity, generative AI, respect, accessibility.</li>
+</ul>
+</li>
+<li>
+<p>This lesson’s task is about getting set up for the course.</p>
+<ul>
+<li>Ask questions about the course setup in this lesson’s <a href="https://github.com/khale/mem-systems-w25/discussions/1">discussion topic</a>!</li>
+<li>Your first task is below: introduce yourself in Discord right now, and (offline) pick a paper discussion to lead.
+<ul>
+<li>This website and the <a href="https://khale.github.io/mem-systems-w25/blog/">blog</a>, including the <a href="https://github.com/khale/mem-systems-w25">GitHub repository</a> where you’ll send PRs. The idea is that we are working together in this class as a real research team might.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="tasks">Tasks</h2>
+<ul>
+<li>Read the <a href="https://khale.github.io/mem-systems-w25/syllabus/">syllabus</a>!</li>
+<li>Sign up for Discord and introduce yourself</li>
+<li>Do the background reading for Wednesday and for next week.</li>
+<li>Decide on teams for projects. See the <a href="https://khale.github.io/mem-systems-w25/syllabus/">syllabus</a>.</li>
+<li>Ask any questions about the course structure or content in this lesson’s <a href="https://github.com/khale/mem-systems-w25/discussions/1">discussion topic</a>.</li>
+<li>Pick a paper from the <a href="https://khale.github.io/mem-systems-w25/schedule/">schedule</a> whose discussion you want to lead and volunteer for it.
+Claim it by opening a pull request that modifies <a href="https://github.com/khale/mem-systems-w25/blob/main/data/content.toml"><code>content.toml</code></a> to fill in your name on one of the <code>leader = "TK"</code> lines.</li>
+</ul>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

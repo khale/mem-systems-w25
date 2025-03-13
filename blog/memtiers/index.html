@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Managing Memory Tiers with CXL in Virtualized Environments</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Managing Memory Tiers with CXL in Virtualized Environments">
+<meta property="og:description"
+    content="Introduction
+The topic of this blog is to discuss the paper “Managing Memory Tiers with CXL in Virtualized Environments”. This paper discussed CXL, a high-speed interconnect standard designed to expand memory capacity and enable efficient memory sharing across devices. The key challenge lies in managing latency-sensitive workloads in virtualized environments where traditional software-managed tiering incurs prohibitive overheads.
+Executive Summary
+Background:
+CPU core counts scaling faster than memory capacity
+CXL enables second-tier memory to facilitate core scaling
+But CXL adds latency that hurts performance if not mitigated
+Software tiering helps some but is not well suited for public clouds
+Contributions:
+Intel Flat Memory Mode: First hardware-managed memory tiering for CXL
+But still has limitations that degrade workloads
+Memstrata: Memory allocator for hardware tiering to mitigate outliers
+Slowdown reduces to ~5% vs. unattainable one-tier memory
+Class Discussion:
+So I think that as of this month you can buy Xeon 6 flat memory chips. It also has pcores - performance cores.
+hybrid cpu arches - mobile chips, also released for desktop chips, and now recently for
+diff arches for cores: small and weak (ecores) cores vs strong  (pcores) cores
+Is this related to dark silicon?
+Not quite as different as proposals as other dark silicon ideas
+starting 2006: concern that you could not power all parts of a chip. -&amp;gt; led to proposals to turn off unused portions of chip to save power.
+The current philosophy is to use parts that are low power and use other parts that are higher power.
+The trend of increasing power usage is plateauing.
+Why is there a hump on the graph comparing core count to memory capacity per core?
+Memory capacity got more efficient in 2016.
+Counts could also be averaged, and on AMD and Intel processors.
+Intel flat memory mode - direct mapped exclusive cache. How much of the slowdown is caused by conflict misses? You could still get significant cache misses even with page coloring due to the direct mapped nature of the cache.
+Cutting address space in half. Because cache is exclusive, two memory locations map to a given cache line. To have a system with no conflict misses, you would need a 2-way set associative cache. No clue why they did not try 2-way associative cache.
+Tag comparisons are done in parallel in the DRAM with n-way associative caches
+This would be intrusive and this paper is supposed to integrate into a product, so I guess they were conservative.
+Did Intel model associativity with these workloads? How much is Memstrata compensating for limited associativity in the cache?
+They do not talk about how tagging is done in the paper. Could they have presented differences in associativity to performance?
+Noisy neighbor problem (other VM is using lots of memory bandwidth on the same chip). There exist hardware solutions to this (ARM and x86). Use a hardware identifier to determine different VMs and even cache partitioning. Why is the noisy neighbor problem such a large problem if solutions already exist? Does Intel flat memory not implement these existing hardware solutions?
+ARM: MPAM, x86: RDT (Resource Director Technology)
+Gives x number of bandwidth per VM
+Maybe it does not translate to CXL very well?
+These existing technologies exist on the core - the paper’s hardware exists on the memory controller, so these existing technologies would have to be copied onto the memory controller as well
+Maybe since this is first Gen it is not as ambitious?
+Which VM is using more local memory vs. CXL memory - use this information to swap pages between VMs. Could this cause ping ponging, where swapping pages between VMs could cause an issue, where one VM might want to use a swapped page after it has been swapped?
+This ping ponging would cause a slowdown.
+This could occur in a memory-hungry application.
+Would want to use a control algorithm to have the correct ratios of local&#x2F;CXL pages for each VM.
+Paper uses exponential moving algorithm to do this, but it can still cause oscillations (ping ponging)
+Interesting thing compared to other far memory systems: we are not yet directly memory mapping CXL memory into the physical address space. This means that you can’t map CXL memory directly to cache lines. Why is this the case?
+TPP does this (transparent page placement) in software.
+Could they mark some pages as don’t pull into DRAM? Yes, and you might in some cases want this.
+They already have non-temporal loads&#x2F;stores - does this effect DRAM cache? i.e., bringing CXL memory to local DRAM?
+CXL memory looks desirable because normal DIMM connections do not scale.
+Much cheaper
+Also allows for recycling old DIMM memory chips as CXL memory
+Backwards compatibility: DDRx tech would need to be supported by the hardware that is used by CXL for far memory
+Decommissioning datacenter - all old stuff could be used in these CXL memory pools.
+Common proposal: use persistent memory in these CXL memory pools
+When do you think we will have thunderbolt memory extenders?
+So that you can run 10 more cron tabs on a PCIe card connected via thunderbolt.
+External GPUs can be plugged into thunderbolt.
+GPU prices are expensive right now
+What if your friend is not using their GPU right now - you could plug into their GPU.
+Cloud GPUs also support multi-tenants.
+LAN parties with multiple people plugging into the same GPU.
+References">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>Managing Memory Tiers with CXL in Virtualized Environments</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Shuxian Qin (leader),
+      
+        Gabriel Rodgers (scribe),
+      
+        Shuyi Zheng (blogger)
+      
+      <span>
+    
+    <time datetime="2025-03-05">
+      March  5, 2025
+    </time>
+  </p>
+  <h2 id="introduction">Introduction</h2>
+<p>The topic of this blog is to discuss the paper “Managing Memory Tiers with CXL in Virtualized Environments”. This paper discussed CXL, a high-speed interconnect standard designed to expand memory capacity and enable efficient memory sharing across devices. The key challenge lies in managing latency-sensitive workloads in virtualized environments where traditional software-managed tiering incurs prohibitive overheads.</p>
+<h2 id="executive-summary">Executive Summary</h2>
+<h3 id="background">Background:</h3>
+<p>CPU core counts scaling faster than memory capacity
+CXL enables second-tier memory to facilitate core scaling
+But CXL adds latency that hurts performance if not mitigated
+Software tiering helps some but is not well suited for public clouds
+Contributions:
+Intel Flat Memory Mode: First hardware-managed memory tiering for CXL
+But still has limitations that degrade workloads
+Memstrata: Memory allocator for hardware tiering to mitigate outliers
+Slowdown reduces to ~5% vs. unattainable one-tier memory</p>
+<h2 id="class-discussion">Class Discussion:</h2>
+<p>So I think that as of this month you can buy Xeon 6 flat memory chips. It also has pcores - performance cores.
+hybrid cpu arches - mobile chips, also released for desktop chips, and now recently for
+diff arches for cores: small and weak (ecores) cores vs strong  (pcores) cores</p>
+<p>Is this related to dark silicon?
+Not quite as different as proposals as other dark silicon ideas
+starting 2006: concern that you could not power all parts of a chip. -&gt; led to proposals to turn off unused portions of chip to save power.
+The current philosophy is to use parts that are low power and use other parts that are higher power.
+The trend of increasing power usage is plateauing.</p>
+<p>Why is there a hump on the graph comparing core count to memory capacity per core?
+Memory capacity got more efficient in 2016.
+Counts could also be averaged, and on AMD and Intel processors.</p>
+<p>Intel flat memory mode - direct mapped exclusive cache. How much of the slowdown is caused by conflict misses? You could still get significant cache misses even with page coloring due to the direct mapped nature of the cache.
+Cutting address space in half. Because cache is exclusive, two memory locations map to a given cache line. To have a system with no conflict misses, you would need a 2-way set associative cache. No clue why they did not try 2-way associative cache.
+Tag comparisons are done in parallel in the DRAM with n-way associative caches
+This would be intrusive and this paper is supposed to integrate into a product, so I guess they were conservative.</p>
+<p>Did Intel model associativity with these workloads? How much is Memstrata compensating for limited associativity in the cache?</p>
+<p>They do not talk about how tagging is done in the paper. Could they have presented differences in associativity to performance?</p>
+<p>Noisy neighbor problem (other VM is using lots of memory bandwidth on the same chip). There exist hardware solutions to this (ARM and x86). Use a hardware identifier to determine different VMs and even cache partitioning. Why is the noisy neighbor problem such a large problem if solutions already exist? Does Intel flat memory not implement these existing hardware solutions?
+ARM: MPAM, x86: RDT (Resource Director Technology)
+Gives x number of bandwidth per VM
+Maybe it does not translate to CXL very well?
+These existing technologies exist on the core - the paper’s hardware exists on the memory controller, so these existing technologies would have to be copied onto the memory controller as well
+Maybe since this is first Gen it is not as ambitious?</p>
+<p>Which VM is using more local memory vs. CXL memory - use this information to swap pages between VMs. Could this cause ping ponging, where swapping pages between VMs could cause an issue, where one VM might want to use a swapped page after it has been swapped?
+This ping ponging would cause a slowdown.
+This could occur in a memory-hungry application.
+Would want to use a control algorithm to have the correct ratios of local/CXL pages for each VM.
+Paper uses exponential moving algorithm to do this, but it can still cause oscillations (ping ponging)</p>
+<p>Interesting thing compared to other far memory systems: we are not yet directly memory mapping CXL memory into the physical address space. This means that you can’t map CXL memory directly to cache lines. Why is this the case?
+TPP does this (transparent page placement) in software.
+Could they mark some pages as don’t pull into DRAM? Yes, and you might in some cases want this.
+They already have non-temporal loads/stores - does this effect DRAM cache? i.e., bringing CXL memory to local DRAM?</p>
+<p>CXL memory looks desirable because normal DIMM connections do not scale.
+Much cheaper
+Also allows for recycling old DIMM memory chips as CXL memory
+Backwards compatibility: DDRx tech would need to be supported by the hardware that is used by CXL for far memory
+Decommissioning datacenter - all old stuff could be used in these CXL memory pools.
+Common proposal: use persistent memory in these CXL memory pools</p>
+<p>When do you think we will have thunderbolt memory extenders?
+So that you can run 10 more cron tabs on a PCIe card connected via thunderbolt.
+External GPUs can be plugged into thunderbolt.
+GPU prices are expensive right now
+What if your friend is not using their GPU right now - you could plug into their GPU.
+Cloud GPUs also support multi-tenants.
+LAN parties with multiple people plugging into the same GPU.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://www.usenix.org/system/files/osdi24-zhong-yuhong.pdf">Paper</a></li>
+<li><a href="https://www.usenix.org/system/files/osdi24_slides-zhong-yuhong.pdf">Slides</a></li>
+</ul>
+
+  <footer>
+    
+    
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

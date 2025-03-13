@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Disaggregated Memory for Expansion and Sharing in Blade Servers</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Disaggregated Memory for Expansion and Sharing in Blade Servers">
+<meta property="og:description"
+    content="Introduction
+This paper remarks on the current trend in server architecture, there’s an imbalance in the memory-to-capacity ratio, which is accompanied by an increase in power consumption and data center costs. The paper re-evaluates this relationship by looking at the traditional compute-memory co-location and implementing something new called a “memory blade”, a module for blade servers that enables disaggregated memory across a system. This inclusion is used for memory-capacity expansion, resulting in an increase in performance and reducing power costs. The memory blades in particular are building blocks that allow for two system proposals. The two system proposals are the page-swapping remote memory (PS) and fine-grained remote memory access (FGRA). PS is implemented in the virtual layer while FGRA is implemented in the coherence hardware to handle transparent memory expansion and sharing across systems.
+Implementation
+The implementation starts with the memory blade, which is composed of DRAM modules that connect to the server via a high-speed interface such as PCIe. Furthermore, the design of the memory blade includes custom hardware to allow for both PS and FGRA systems to be implemented in testing. For PS, it doesn’t use the custom hardware but leverages virtual memory to handle page swaps in both local and remote memory. The hypervisor in the software stack manages the page access, ensuring that the system works with the OS and applications. Unlike PS, FGRA doesn’t rely on just software and the VMM. FGRA takes full advantage of the custom hardware the memory blade utilizes to enable use of coherence protocols and a custom memory controller. These implementations result in a reduced overhead of page-swapping. Both these systems are put through trace-based simulations and evaluated on benchmarks to compare the performance of a memory-blade system to a traditional system.
+Results
+The results contain simulations using benchmarks such as zeusmp, perl, gcc, bwaves, spec4p, nutch4p, tpchmix, mcf, pgbench, indexer, specjbb, and Hmean. Figure 5 details the capacity expansion results, and we find that PS has better performance over FGRA in speedups over M-app-75% provisioning and M-median provisioning. These graphs highlight both FGRA and PS relative to the baseline, with a 4X to 320X increase in performance. In figure 7a, PS handles the imbalance between VM memory demands and local capacity, resulting in a possible 68% reduction of processor count. In terms of cost, PS is slightly better as it’s not reliant on custom hardware, but implementing disaggregated memory improves performance-per-dollar by 87% in Figure 7(b). FGRA has some drawbacks as it doesn’t handle swapping like PS, which is addressed inn figure 8 for potential hardware implementations such as page migration.">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>Disaggregated Memory for Expansion and Sharing in Blade Servers</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Gabriel Rodgers (leader),
+      
+        Sami Aljabery (blogger),
+      
+        Noah Bean (scribe)
+      
+      <span>
+    
+    <time datetime="2025-02-26">
+      February 26, 2025
+    </time>
+  </p>
+  <h2 id="introduction">Introduction</h2>
+<p>This paper remarks on the current trend in server architecture, there’s an imbalance in the memory-to-capacity ratio, which is accompanied by an increase in power consumption and data center costs. The paper re-evaluates this relationship by looking at the traditional compute-memory co-location and implementing something new called a “memory blade”, a module for blade servers that enables disaggregated memory across a system. This inclusion is used for memory-capacity expansion, resulting in an increase in performance and reducing power costs. The memory blades in particular are building blocks that allow for two system proposals. The two system proposals are the page-swapping remote memory (PS) and fine-grained remote memory access (FGRA). PS is implemented in the virtual layer while FGRA is implemented in the coherence hardware to handle transparent memory expansion and sharing across systems.</p>
+<h2 id="implementation">Implementation</h2>
+<p>The implementation starts with the memory blade, which is composed of DRAM modules that connect to the server via a high-speed interface such as PCIe. Furthermore, the design of the memory blade includes custom hardware to allow for both PS and FGRA systems to be implemented in testing. For PS, it doesn’t use the custom hardware but leverages virtual memory to handle page swaps in both local and remote memory. The hypervisor in the software stack manages the page access, ensuring that the system works with the OS and applications. Unlike PS, FGRA doesn’t rely on just software and the VMM. FGRA takes full advantage of the custom hardware the memory blade utilizes to enable use of coherence protocols and a custom memory controller. These implementations result in a reduced overhead of page-swapping. Both these systems are put through trace-based simulations and evaluated on benchmarks to compare the performance of a memory-blade system to a traditional system.</p>
+<h2 id="results">Results</h2>
+<p>The results contain simulations using benchmarks such as zeusmp, perl, gcc, bwaves, spec4p, nutch4p, tpchmix, mcf, pgbench, indexer, specjbb, and Hmean. Figure 5 details the capacity expansion results, and we find that PS has better performance over FGRA in speedups over M-app-75% provisioning and M-median provisioning. These graphs highlight both FGRA and PS relative to the baseline, with a 4X to 320X increase in performance. In figure 7a, PS handles the imbalance between VM memory demands and local capacity, resulting in a possible 68% reduction of processor count. In terms of cost, PS is slightly better as it’s not reliant on custom hardware, but implementing disaggregated memory improves performance-per-dollar by 87% in Figure 7(b). FGRA has some drawbacks as it doesn’t handle swapping like PS, which is addressed inn figure 8 for potential hardware implementations such as page migration.</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/disaggregated-memory-for-expansion-and-sharing-in-blade-servers/MMS_Image_1.png" alt="results" /></p>
+<h2 id="weakness">Weakness</h2>
+<p>One of the main weaknesses discussed in the paper is that the memory blade introduces several modes of failure, which could be solved by adding redundancy to the memory controller. Another noted weakness is that PS works without any additional hardware use, but FRGA would require some hardware modifications to be feasible, and this would include addressing page migration. Adding on, both PS and FRGA struggle with heavier loads, which could be addressed by modifying the high-speed interface. This is also a concern when considering local and remote latency tradeoffs, an upgrade from PCIe to CXL could be worth visiting.</p>
+<h2 id="class-discussion">Class Discussion</h2>
+<ul>
+<li>
+<p><strong>Hypervisor Type:</strong> The paper likely assumes a Type 1 hypervisor (runs directly on hardware), but a Type 2 hypervisor (runs on an OS) could work with adjustments. The type matters for implementation details but not the core concept.</p>
+</li>
+<li>
+<p><strong>4KB Page Transfers:</strong> Waiting for a 4KB transfer may seem slow, but locality and caching reduce the impact. Prefetching could further help, though its effectiveness depends on the workload.</p>
+</li>
+<li>
+<p><strong>Workload Locality:</strong> The paper’s workloads (from 2009) may not reflect modern graph workloads with random access patterns. However, improved CPU prefetchers since then could lessen performance penalties.</p>
+</li>
+<li>
+<p><strong>CXL (Compute Express Link):</strong> A modern evolution of PCIe, CXL supports coherence natively, potentially simplifying FGRA-like approaches without custom coherence filters.</p>
+</li>
+<li>
+<p><strong>Modern Trends:</strong> Today, page-based remote memory access often uses InfiniBand or Ethernet (not just PCIe), enabling memory sharing across datacenters.</p>
+</li>
+</ul>
+<h2 id="practical-considerations">Practical Considerations</h2>
+<ul>
+<li>
+<p><strong>Increasing Local DRAM:</strong> Adding more DRAM to each server is wasteful, as it’s underutilized most of the time.</p>
+</li>
+<li>
+<p><strong>Interleaving Memory Blades:</strong> Compute blades can pull pages from memory blades as needed. This is slower than local memory but faster than accessing a hard disk drive (HDD).</p>
+</li>
+<li>
+<p><strong>Dynamic Allocation:</strong> No software changes are required unless dynamically reallocating memory within the blade.</p>
+</li>
+<li>
+<p><strong>Performance Differences:</strong> PS vs. FGRA differences arise from transfer granularity (4KB pages vs. 64-byte cache blocks) and interconnect speed (PCIe vs. HyperTransport).</p>
+</li>
+</ul>
+<h2 id="source">Source:</h2>
+<p><a href="https://dl.acm.org/doi/10.1145/1555754.1555789">https://dl.acm.org/doi/10.1145/1555754.1555789</a></p>
+<p><a href="https://chatgpt.com/">https://chatgpt.com/</a></p>
+<p>Note: ChatGPT was used to improve clarity on the class discussion section.</p>
+
+  <footer>
+    
+    <p>Gabriel Rodgers is an Electrical and Computer Engineering student at Oregon State University that enjoys creating low-level embedded projects and growing carnivorous plants.</p>
+
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

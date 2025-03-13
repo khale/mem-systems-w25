@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Shared Memory and Cache Coherence</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 6:
+  Shared Memory and Cache Coherence
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/30" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;library.oapen.org&#x2F;handle&#x2F;20.500.12657&#x2F;61248" class="icon reading">^ Primer on Memory Consistency and Cache Coherence</a>
+    
+    <br>Chapters 2,6,7,8
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;dl.acm.org&#x2F;doi&#x2F;10.1145&#x2F;800015.808204" class="icon reading">* A low-overhead coherence solution for multiprocessors with private cache memories</a>
+    
+    <br>Papamarcos et al., ISCA &#x27;84
+    
+  </li>
+  
+  
+  <li>
+    <a href="#tasks" class="icon due">tasks</a> due <strong>January 27</strong>
+  </li>
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel confortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<p>I will cover a few key ideas here, but the slides from lecture can be found on Canvas.</p>
+<h3 id="key-terms">Key Terms</h3>
+<ul>
+<li><em>ccNUMA</em>: cache-coherent NUMA</li>
+<li><em>SMP</em>: Symmetric multi-processor (contrast to NUMA)</li>
+<li><em>ping-ponging</em>: when a cache line bounces back and forth over the coherence interconnect, creating performance issues. Typical with locks</li>
+<li><em>Reader-writer lock</em>: a scalable lock implementation that differentiates between threads trying to read and those trying to write</li>
+<li><em>RPC</em>: Remote procedure call. See Ch. 48.5 of <a href="https://pages.cs.wisc.edu/~remzi/OSTEP/dist-intro.pdf">here</a></li>
+<li><em>TLB shootdown</em>: When a multi-threaded process running across cores has any change to its address space (i.e., a page table entry is changed, added, or removed), the TLB must be flushed. But we can’t just flush our local core’s TLB now. We have to tell other cores to do the same, otherwise threads might see different views of the address space.</li>
+<li><em>IPI</em>: Inter-processor interrupt. Hardware mechanism to send an asynchronous interrupt message to another CPU core. These are used for several OS events, a notable one being TLB shootdowns.</li>
+<li><em>microkernel</em>: OS architecture that pushes most functionality out to userspace. Microkernels use a modular structure where userspace OS components communicate with one another using inter-process communication (IPC) mechanisms, mediated by the core (privileged) kernel.</li>
+<li><em>two-phase commit</em>: (2PC) a protocol to commit distributed transactions (e.g. a write to multiple replicas). An originator process/thread sends a “prepare” message to all participants. If all acknowledge, the originator process sends a commit message, and all participants commit the transaction. If &gt;= 1 participants fail to prepare or reject the prepare message, the entire transaction is rolled back.</li>
+</ul>
+<h3 id="trends">Trends</h3>
+<p>Think about the trends used as motivation in the paper (which is more than a decade old now). What trends have continued?</p>
+<h3 id="distributed-systems">Distributed Systems</h3>
+<p>We could have an entire course about agreement protocols and distributed algorithms, but one thing to think about as we cover
+the basics of consensus and state machine replication later on is: do their claims align with the issue of scale?</p>
+<h3 id="follow-up-reading">Follow-up Reading</h3>
+<p>Some of the core ideas from Barrelfish are still being explored in different ways. See</p>
+<ul>
+<li>Delegation: <a href="https://dl.acm.org/doi/10.1145/3132747.3132771">ffwd</a> SOSP ’17</li>
+<li>Node replicated kernel: <a href="https://www.usenix.org/conference/osdi21/presentation/bhardwaj">NrOS</a> OSDI ’21</li>
+</ul>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

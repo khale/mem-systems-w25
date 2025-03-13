@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Distributed Shared Memory</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 11:
+  Distributed Shared Memory
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/48" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;dl.acm.org&#x2F;doi&#x2F;pdf&#x2F;10.1145&#x2F;75104.75105" class="icon reading">* Memory coherence in shared virtual memory systems</a>
+    
+    <br>Kai Li and Paul Hudak, PODC &#x27;86
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;www.usenix.org&#x2F;conference&#x2F;usenix-winter-1994-technical-conference&#x2F;tread-marks-distributed-shared-memory-standard" class="icon reading">* Tread Marks: Distributed Shared Memory on Standard Workstations and Operating Systems</a>
+    
+    <br>Keleher et al., USENIX Winter TC &#x27;94
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;www.usenix.org&#x2F;conference&#x2F;atc15&#x2F;technical-session&#x2F;presentation&#x2F;nelson" class="icon reading">* Latency-Tolerant Software Distributed Shared Memory</a>
+    
+    <br>Nelson et al., USENIX ATC &#x27;15
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;www.usenix.org&#x2F;conference&#x2F;fast21&#x2F;presentation&#x2F;wang" class="icon reading">* Concordia: Distributed Shared Memory with In-Network Cache Coherence</a>
+    
+    <br>Wang et al., FAST &#x27;21
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;dl.acm.org&#x2F;doi&#x2F;10.1145&#x2F;3505251" class="icon reading">* GiantVM: A Novel Distributed Hypervisor for Resource Aggregation with DSM-aware Optimizations</a>
+    
+    <br>Jia et al., ACM TACO &#x27;22
+    
+  </li>
+  
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel comfortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<h3 id="page-granularity-sharing">Page granularity sharing</h3>
+<p>DSM systems typically share data at the level of pages, contrasted with the cache line size. This is because we need to
+amortize the (relatively) large costs of communicating over a loosely coupled newtork. These costs suggest the use of
+large pages, but there is a problem…</p>
+<h3 id="false-sharing">False sharing</h3>
+<p>We’ve talked about this before, but any time we share data in <em>chunks</em>, there is a possibility of two threads/processes accessing
+distinct data in separate parts of the chunk. In a system that has to enforce coherence, such <em>false sharing</em> confounds
+the coherence protocol, generating unnecessary traffic on the interconnect.</p>
+<h3 id="restricting-shared-memory">Restricting shared memory</h3>
+<p>Note that in IVY, not <em>all</em> memory can be shared across nodes. Some portion of the address space (in particular, the low portion), is
+kept local, ensuring fast access. For example, the executable of processes is kept in local memory. However, the stack is not. The PCB
+is kept private.</p>
+<h3 id="note-on-terminology">Note on terminology</h3>
+<p>The authors use the term <em>eventcount</em> to describe a synchronization primitive. You will hopefully recognize this as what
+we’d today call a <em>counting semaphore</em>.</p>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: TrackFM: Far-out Compiler Support for a Far Memory World</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TrackFM: Far-out Compiler Support for a Far Memory World">
+<meta property="og:description"
+    content="Introduction
+TrackFM is a compiler-based far memory system which enables programmers to transparently upgrade their applications to use remote memory, extending the capacity of available main memory for those programs. TrackFM does this by using modern compiler analysis and transformation techniques to support far&#x2F;remote memory. To optimize the data movement costs between server and client, TrackFM introduces novel compiler analysis and transformation passes (in the form of LLVM passes).
+Along with the compiler techniques, TrackFM extends the library-based far memory solution, AIFM, to reuse it’s runtime and local&#x2F;remote object management mechanims.
+TrackFM Design and Implementation
+TrackFM has 2 components:">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>TrackFM: Far-out Compiler Support for a Far Memory World</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Eugene Cohen (leader),
+      
+        Nanda Velugoti (blogger),
+      
+        David Luo (scribe),
+      
+        Rabecka Moffit,
+      
+        Benjamin Knutson
+      
+      <span>
+    
+    <time datetime="2025-03-03">
+      March  3, 2025
+    </time>
+  </p>
+  <h1 id="introduction">Introduction</h1>
+<p>TrackFM is a compiler-based far memory system which enables programmers to transparently upgrade their applications to use remote memory, extending the capacity of available main memory for those programs. TrackFM does this by using modern compiler analysis and transformation techniques to support far/remote memory. To optimize the data movement costs between server and client, TrackFM introduces novel compiler analysis and transformation passes (in the form of LLVM passes).</p>
+<p>Along with the compiler techniques, TrackFM extends the library-based far memory solution, AIFM, to reuse it’s runtime and local/remote object management mechanims.</p>
+<h1 id="trackfm-design-and-implementation">TrackFM Design and Implementation</h1>
+<p>TrackFM has 2 components:</p>
+<ol>
+<li><strong>Compiler:</strong> Takes the unmodified application source code and uses the modern/novel compiler analysis and transformation passes to generate the transformed. It also injects required TrackFM runtime dependencies. TrackFM compiler employs two main analysis/transformation optimization for minimal remote access overheads:</li>
+</ol>
+<ul>
+<li><strong>Guard Checking:</strong> TracFM uses <em>guards</em> to ensure that an object is present in local memory before accessing it.</li>
+<li><strong>Loop Chunking:</strong> Loop chunking is used to reduce the overhead introduced into the program where <em>guards</em> are present in a loop body.</li>
+</ul>
+<ol start="2">
+<li><strong>Runtime:</strong> TrackFM reuses AIFM’s runtime to create and manage remote objects, i.e., how to fetch/evict objects from remote server into the local memory.</li>
+</ol>
+<h1 id="results">Results</h1>
+<ul>
+<li>TrackFM performs around 2.7x better than FastSwap but slightly worse than AIFM around 0.9x. However, TrackFM enables far memory transparently unlike AIFM.</li>
+<li>Compilatoin cost for TrackFM is 6x compared to standard LLVM and the generated code size is increased by about 2.4x.</li>
+</ul>
+<h1 id="discussion">Discussion</h1>
+<ul>
+<li>Important to note that the “Normalized performance” on the graph between FastSwap and AIFM is in comparison to a machine with local memory</li>
+<li>It is not optimal to check every time, essentially turning one instruction into 14. THe challenge is knowing when NOT to inject it into the code</li>
+<li>AIFM gives you prefetching (you get it for free since TrackFM extends AIFM)</li>
+<li>Remote cost is where the thing is actually remote and you need to go fetch it. Overhead is drowned out over the network because the network is so expensive</li>
+<li>When comparing to overhead, you’re only talking about the remote case, which is what you’re optimizing for</li>
+<li><strong>Q:</strong> Is this a synthetic case? <strong>A:</strong> This is like a minor fault, where you’re faulting in a page, not because it’s over the network, but because it’s not mapped in. It’s in memory, just not a page table for it</li>
+<li><strong>Q:</strong> In the graph of TrackFM, AIFM, and Fastswap. X-axis was [% of 31GB] for the local memory, is that the percentage free or used? <strong>A:</strong> It can be interpreted as the percentage constrained as it’s only able to use 16GB (50%). Essentially artificially constraining the application to only use this amount of memory</li>
+<li><strong>Q:</strong> So that’s what the tuning would be good for? <strong>A:</strong> Yes, the assumption is the person modifying the code understands the infrastructure. So someone using a remote array would use a different object size from someone using the map, but if the compiler is doing it for you, it doesn’t know</li>
+<li>Memory constrained to 1Gb out of 12Gb</li>
+<li><strong>Q:</strong> What’s zipfy/zipf/zipfian? <strong>A:</strong> Basically a power law distribution, There are very few hot keys, and very many keys that aren’t accessed very often, essentially a long tail.</li>
+<li><strong>Q:</strong> The higher the skew, the longer the tail? <strong>A:</strong> Dr.Hale: If you have higher skewness, (accessing one object over and over again, perfect for Fastswap), but for TackFM, it’s not very great, high spatial locality, high guards/faults, essentially lookups in a hash table (random access)</li>
+<li><strong>Q</strong> Opportunities for hardware to help questions were asked from reviewers a lot (conclusions and thoughts slide)? <strong>A:</strong> Yes, they’re building hardware for architected pointer features to be combined with compiler-driven techniques. Thought about building on top of the cherry(?) extensions
+The compiler approach gives more flexibility.</li>
+<li>TrackFM only works for sequential data structures currently, anything that’s a linked data structure. It’ll work but it’ll pay the cost of the guards.</li>
+<li><strong>Q:</strong> Was there data that showed the performance if you didn’t do any loop chunking? <strong>A:</strong> Yes, it was pretty bad</li>
+</ul>
+<h1 id="conclusion">Conclusion</h1>
+<p>In conclusion, TrackFM is a compiler/runtime-based solution that enables programmers to write application that can use far memory (with large memory capacity) transparently. Using TrackFM, programmers can expect performance on-par with the existing state-of-the-art library-based solutions (within 10%) along with 2x the programmer transparency. A lot of this is possible because of advancements made in the far memory hardware (RDMA), which provides low latency remote memory accesses, enabling the solutions like TrackFM.</p>
+<h1 id="references">References</h1>
+<ul>
+<li>Paper: <a href="https://dl.acm.org/doi/10.1145/3617232.3624856">https://dl.acm.org/doi/10.1145/3617232.3624856</a></li>
+<li>Lightning Talk Video: <a href="https://www.youtube.com/watch?v=e6c0MhP2CJQ">https://www.youtube.com/watch?v=e6c0MhP2CJQ</a></li>
+<li>Repo: <a href="https://github.com/compiler-disagg/TrackFM">https://github.com/compiler-disagg/TrackFM</a></li>
+<li>Fastswap (2020) paper: <a href="https://dl.acm.org/doi/pdf/10.1145/3342195.3387522">https://dl.acm.org/doi/pdf/10.1145/3342195.3387522</a></li>
+<li>Fastswap slides: <a href="https://2020.eurosys.org/wp-content/uploads/2020/04/slides/133_amaro_slides.pdf">https://2020.eurosys.org/wp-content/uploads/2020/04/slides/133_amaro_slides.pdf</a></li>
+<li>AIFM (2020) paper: <a href="https://www.usenix.org/system/files/osdi20-ruan.pdf">https://www.usenix.org/system/files/osdi20-ruan.pdf</a></li>
+<li>AIFM slides: <a href="https://www.usenix.org/sites/default/files/conference/protected-files/osdi20_slides_ruan.pdf">https://www.usenix.org/sites/default/files/conference/protected-files/osdi20_slides_ruan.pdf</a></li>
+<li>AIFM RDMA Project: <a href="https://github.com/fengqingthu/MIT_6.5810_Adding_RDMA_To_AIFM/blob/master/65810_Final_Project.pdf">https://github.com/fengqingthu/MIT_6.5810_Adding_RDMA_To_AIFM/blob/master/65810_Final_Project.pdf</a></li>
+</ul>
+
+  <footer>
+    
+    
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

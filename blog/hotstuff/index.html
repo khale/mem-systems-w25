@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: HotStuff: BFT Consensus with Linearity and Responsiveness</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HotStuff: BFT Consensus with Linearity and Responsiveness">
+<meta property="og:description"
+    content="Introduction
+HotStuff is a Byzantine Fault Tolerance (BFT) consensus protocol that achieves much lower time complexity than previous BFT consensus implementations (i.e., PBFT, SBFT, etc). HotStuff is implemented for partially synchronous systems. It achieves a lower time complexity by using a 4-step design, pipelining (in chained HotStuff), and message cryptography. HotStuff also provides optimistic responsiveness.
+There are several parts of any BFT protocol: first, the BFT protocol must provide a view-change, which is an algorithm that allows a new leader to collect information and send it to the follower nodes. Second, the BFT protocol must provide a way for all the nodes to come to a consensus, which is dependent on the BFT protocol itself.
+Keywords">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>HotStuff: BFT Consensus with Linearity and Responsiveness</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        Shuyi Zheng (leader),
+      
+        Gabriel Rodgers (Blogger) ,
+      
+        Sami Aljabery (Scribe) 
+      
+      <span>
+    
+    <time datetime="2025-02-05">
+      February  5, 2025
+    </time>
+  </p>
+  <h2 id="introduction">Introduction</h2>
+<p>HotStuff is a Byzantine Fault Tolerance (BFT) consensus protocol that achieves much lower time complexity than previous BFT consensus implementations (i.e., PBFT, SBFT, etc). HotStuff is implemented for partially synchronous systems. It achieves a lower time complexity by using a 4-step design, pipelining (in chained HotStuff), and message cryptography. HotStuff also provides optimistic responsiveness.</p>
+<p>There are several parts of any BFT protocol: first, the BFT protocol must provide a view-change, which is an algorithm that allows a new leader to collect information and send it to the follower nodes. Second, the BFT protocol must provide a way for all the nodes to come to a consensus, which is dependent on the BFT protocol itself.</p>
+<h2 id="keywords">Keywords</h2>
+<ul>
+<li>BFT: Byzantine Fault Tolerance; toleration of faulty/malicious nodes.</li>
+<li>Consensus: Multiple nodes coming to an agreement on a subject.</li>
+<li>GST: Global Synchronization Time, or the point in time where afterwards a message has a known transmission bound.</li>
+<li>Optimistic responsiveness: A guarantee that a non-faulty leader node will be able to drive a system to consensus after a known condition (i.e., after GST) in a time frame dependent on the actual delays of messages on the network.</li>
+</ul>
+<h2 id="problem">Problem</h2>
+<p>Current BFT protocols do not scale well for larger-node distributed systems (PBFT, SBFT, etc.); some protocols accomplish consensus in O(N2) time, with N being the number of nodes. Hotstuff remedies this problem by having a time complexity of O(N) for consensus and O(N) for leader replacement. See the below figure (Table 1) for a breakdown of the time complexities of different BFT protocols.
+<img src="https://github.com/user-attachments/assets/0cdeb461-3d70-4472-a770-bd37f9287e47" alt="Performance" /></p>
+<h2 id="implementation">Implementation</h2>
+<p>HotStuff has 4 steps:</p>
+<ol>
+<li>Prepare - The leader node sends a proposal to all follower nodes; the follower nodes determine if the proposal is valid and if so, they send prepare votes to the leader.</li>
+<li>Pre-Commit - The leader waits for the followers to agree to a proposal (get pre-commit votes from follower nodes), then combines these votes into a pre-commit QC and sends it to all nodes for authentication.</li>
+<li>Commit - Follower nodes vote on moving to the Commit stage. If n-f nodes agree to move to the Commit stage, then they are locked into that commit QC.</li>
+<li>Decide - Hotstuff moves to the next view.</li>
+</ol>
+<p>HotStuff uses Cryptography for messages: each node has a signature assigned to it, which is used to provide proof that a message comes from a given node. The signatures from each node are aggregated and merged into a Quorum Certificate (QC), which allows for a simple and fast way to see if a consensus has been reached or not. This decreases the number of signatures required to be authenticated to O(N) time.</p>
+<p>The chained implementation of HotStuff allows for pipelining - a set of nodes can be in different views at the same time, with each view being in a different HotStuff stage. This allows for more parallelism and better performance.</p>
+<h2 id="class-discussion">Class Discussion</h2>
+<p>Is the paper and accompanying slides based on the basic version of HotStuff, or the pipelined version of HotStuff?</p>
+<ul>
+<li>The paper goes over both versions, with performance comparisons being drawn between the two in the slides.</li>
+</ul>
+<p>Can a leader election happen between the two command stages? Does it ever happen?</p>
+<ul>
+<li>HotStuff can have different leaders between commands. The table in the slides showcases a chained HotStuff pipeline example.</li>
+</ul>
+<p>What does optimistic responsiveness mean?</p>
+<ul>
+<li>Optimistic responsiveness ensures that even with a faulty leader, a system can elect a new leader and can keep going.</li>
+</ul>
+<p>For all the protocols being tested in Table 1, are all the protocols in the table partially synchronous models or partially asynchronous?</p>
+<ul>
+<li>Asynchronous BFT protocols cannot exist (they cannot reach consensus); partially synchronous means the same thing as partially asynchronous, but the table uses BFT protocols that are labeled as partially synchronous.</li>
+</ul>
+<p>Is HotStuff used in industry?</p>
+<ul>
+<li>Hotstuff was used for quite a bit at Facebook, it’s still recent, so there is not as much adoption as one would expect.</li>
+</ul>
+<p>For a distributed system that requires consistent data, would BFT be the beneficial choice?</p>
+<ul>
+<li>If your system and nodes are secured, you probably don’t need BFT.</li>
+</ul>
+<h2 id="sources">sources</h2>
+<p>https://dl.acm.org/doi/10.1145/3293611.3331591</p>
+<p>https://courses.corelab.ntua.gr/pluginfile.php/9663/course/section/1387/22-23.atc.balla.pdf</p>
+
+  <footer>
+    
+    <p>[Shuyi Zheng] is a undergraduate student studying Electrical and Computer Engineering at Oregon State University.</p>
+
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

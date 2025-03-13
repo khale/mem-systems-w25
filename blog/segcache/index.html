@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Segcache: a memory-efficient and scalable in-memory key-value cache for small objects</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+<meta name="twitter:card" content="summary">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Segcache: a memory-efficient and scalable in-memory key-value cache for small objects">
+<meta property="og:description"
+    content="Introduction
+Modern web applications use in-memory key-value caches such as Memcached and Redis to ensure fast response times and high throughput. However, these systems have some drawbacks, including high metadata overhead, inefficient expiration management, and challenges with scalability. This paper presents Segcache, a new caching solution that addresses these issues by reimagining the way objects are stored and managed.
+Segcache takes a different approach. TTL-indexed segment chains group objects that have similar creation and expiration times, making it easier to expire and evict a bunch of data at the same time. Metadata sharing reduces per-object overhead down to just 5 bytes, a 91% reduction compared to Memcached, by merging the metadata into shared segment headers. Instead of evicting objects one by one, merge-based eviction removes entire segments, keeping the more frequently accessed data while still getting memory space back.
+Segcache Design and Implementation">
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+
+
+<h1>
+    <a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+    The ECE 4&#x2F;599 Course Blog
+    </a>
+</h1>
+<article>
+  <h1>Segcache: a memory-efficient and scalable in-memory key-value cache for small objects</h1>
+  <p class="details">
+    
+      <span class="author"> by
+      
+        David Luo (leader),
+      
+        Nanda Velugoti (blogger),
+      
+        Eugene Cohen (Scribe),
+      
+        Rabecka Moffit,
+      
+        Benjamin Knutson
+      
+      <span>
+    
+    <time datetime="2025-02-10">
+      February 10, 2025
+    </time>
+  </p>
+  <h1 id="introduction">Introduction</h1>
+<p>Modern web applications use in-memory key-value caches such as Memcached and Redis to ensure fast response times and high throughput. However, these systems have some drawbacks, including high metadata overhead, inefficient expiration management, and challenges with scalability. This paper presents Segcache, a new caching solution that addresses these issues by reimagining the way objects are stored and managed.</p>
+<p>Segcache takes a different approach. TTL-indexed segment chains group objects that have similar creation and expiration times, making it easier to expire and evict a bunch of data at the same time. Metadata sharing reduces per-object overhead down to just 5 bytes, a 91% reduction compared to Memcached, by merging the metadata into shared segment headers. Instead of evicting objects one by one, merge-based eviction removes entire segments, keeping the more frequently accessed data while still getting memory space back.</p>
+<h1 id="segcache-design-and-implementation">Segcache Design and Implementation</h1>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/segcache/fig-3.png" alt="Figure 3" /></p>
+<p>As illustrated in the figure above, Segcache consists of three main components:</p>
+<ol>
+<li><strong>TTL Buckets:</strong> used for reclaiming expired objects.</li>
+<li><strong>Object Store:</strong> used to store segments as a log.</li>
+<li><strong>Hash table:</strong> used for object lookup.</li>
+</ol>
+<p>Segcache is implemented as a storage module within the open-sourced Pelikan project. [5], [6]</p>
+<h1 id="results">Results</h1>
+<p>These optimizations lead to significant performance gains. Compared to existing caching systems, Segcache uses 22-60% less memory and compared to Memcached on a single thread, it delivers up to 40% better throughput. It also scales pretty well, achieving an 8x speedup over Memcached with 24 threads.</p>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/segcache/fig-10.png" alt="Figure 10" /></p>
+<h1 id="discussion">Discussion</h1>
+<p><strong>Leader’s comment</strong>: Segcache doesn’t need to do a full-cache scan in order for it to remove expired objects, which helps improve its efficiency, but also reduces the overhead seen in traditional caching systems.</p>
+<h3 id="class-discussion">Class discussion</h3>
+<ul>
+<li><strong>Q: What is the granularity at which locks are used?</strong> <strong>A:</strong> Just have locks at segment granularity.</li>
+<li>Segment can have objects that are modified by two clients at a time - if puts are run concurrently could get invalid state of segment so need to enforce mutual exclusion to ensure correctness,</li>
+<li><strong>Q: What do the dotted lines in the graph (Fig 8 in [1]) below represent?</strong> <strong>A:</strong> The dotted lines represent the metadata size in each implementations. Smaller the object metadata size, the better miss ratio. Authors of the paper should’ve explained this better in the paper.</li>
+</ul>
+<p><img src="https://khale.github.io/mem-systems-w25/blog/segcache/fig-8.png" alt="Figure 8" /></p>
+<ul>
+<li><strong>Q: Everywhere in the paper authors say relative miss ratio, i.e. relative to production [2], etc, why show against production?</strong> <strong>A:</strong> They had to pick something, If not in production why would they choose it?</li>
+<li>Patterns along the gray bars in graphs are better for readability.</li>
+<li><strong>Q: What is the relation ship between objects and segments?</strong> <strong>A:</strong> Objects are contained in segments. We could have key just in segments, all the segments get populated with just key updates.  Have to have some way to collapse them.</li>
+<li><strong>Q: In the author’s presentation video, they claim that S3 gets filled you just add segment to end.  But segment is fixed size, how does that work?</strong> <strong>A:</strong> If you run out of slots in a segment you add a new one.  There’s no limit on the number of segments but each is fixed size.  If you fill one up you add a new one. Also, the number of buckets are fixed then the length of linked list is arbitrary.</li>
+<li><strong>Q: How do you read objects?  Do you have to walk multiple segments or just one?</strong></li>
+<li>TTL is not just a technical requirement but also a legal one (GDPR law passed in EU).</li>
+<li>Apparently there are people already building off of segcache. Students in Australia are building hypercache building off of this [4]. Took bucket idea and expiration.</li>
+<li>SQLite has an in-memory implementation, and does not work with multi-threaded apps, does not have proper locking and documentation says is unsafe.  Nevertheless companies still use it. Sometimes you want to do a JOIN.  Moderns DBMS have on-the-fly JOINs.</li>
+<li><strong>Q: Does persistent storage have to be disk?</strong>  <strong>A:</strong> LSM trees are usually designed for SSDs.  When talking about flash storage you have to worry about wear-leveling, so if you just take a naive log structured implementation you could wear out cells if you don’t implement compaction carefully.</li>
+<li><strong>Q: Benefits of log-structured trees?</strong> <strong>A:</strong> many log structured systems batch writes so for correctness they need to be careful to get proper results.</li>
+</ul>
+<h1 id="conclusion">Conclusion</h1>
+<p>In conclusion, Segcache uses a TTL-indexed segment structured storage mechanism to achieve high throughput, high scalability and high memory efficiency when compared to the existing state-of-the-art research/production level solutions.</p>
+<h1 id="references">References</h1>
+<ol>
+<li>Paper: <a href="https://www.usenix.org/system/files/nsdi21-yang.pdf">https://www.usenix.org/system/files/nsdi21-yang.pdf</a></li>
+<li>Slides:<a href="https://www.usenix.org/system/files/nsdi21_slides_yang-juncheng.pdf">https://www.usenix.org/system/files/nsdi21_slides_yang-juncheng.pdf</a></li>
+<li>Video: <a href="https://www.youtube.com/watch?v=s7YtO0rk9WM">https://www.youtube.com/watch?v=s7YtO0rk9WM</a></li>
+<li>HyperCache: <a href="https://shbakram.github.io/assets/papers/honors-thesis-junming.pdf">https://shbakram.github.io/assets/papers/honors-thesis-junming.pdf</a></li>
+<li><a href="http://www.github.com/twitter/pelikan">http://www.github.com/twitter/pelikan</a></li>
+<li><a href="http://www.github.com/thesys-lab/segcache">http://www.github.com/thesys-lab/segcache</a></li>
+</ol>
+
+  <footer>
+    
+    
+    
+    <p>This is the course blog for ECE 4/599, a research-focused course on memory systems in the School of EECS at Oregon State.
+You can subscribe to <a href="https://github.com/khale/mem-systems-w25/blog">posts on the blog</a> with <a href="https://github.com/khale/mem-systems-w25/rss.xml">RSS</a>.</p>
+
+  </footer>
+</article>
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

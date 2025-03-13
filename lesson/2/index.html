@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Memory Tech Refresher</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 2:
+  Memory Tech Refresher
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/3" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;ieeexplore.ieee.org&#x2F;stamp&#x2F;stamp.jsp?arnumber=6522354&amp;tag=1" class="icon reading">^ Tiered-Latency DRAM: A Low Latency and Low Cost DRAM Architecture (Sections 1 &amp; 2)</a>
+    
+    <br>Donghyuk Lee, Yoongu Kim, Vivek Seshadri, Jamie Liu, Lavanya Subramanian, and Onur Mutlu. HPCA &#x27;13
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;ieeexplore.ieee.org&#x2F;document&#x2F;6237032" class="icon reading">^ A Case for Exploiting Subarray-level Parallelism (SALP) in DRAM (Sections 1 &amp; 2)</a>
+    
+    <br>Yoongu Kim, Vivek Seshadri, Donghyuk Lee, Jamie Liu, and Onur Mutlu. ISCA &#x27;12
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;users.ece.cmu.edu&#x2F;~omutlu&#x2F;pub&#x2F;raidr-dram-refresh_isca12.pdf" class="icon reading">^ RAIDR: Retention-Aware Intelligent DRAM Refresh (Sections 1 &amp; 2)</a>
+    
+    <br>Jamie Liu, Ben Jaiyen, Richard Veras, and Onur Mutlu. ISCA &#x27;12
+    
+  </li>
+  
+  
+  <li>
+    <a href="#tasks" class="icon due">tasks</a> due <strong>January 10</strong>
+  </li>
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel confortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<p>You can find slides on <a href="https://canvas.oregonstate.edu/courses/1995803/modules">Canvas</a>.</p>
+<ul>
+<li>Memory constitutes a large fraction of modern chip architecture, impacting overall system performance.</li>
+<li>Memory bottlenecks hinder computational efficiency, especially for data-intensive applications such as deep learning and analytics.</li>
+<li>Effective memory organization (e.g., banking and interleaving) can mitigate latency and allow for parallel accesses.</li>
+<li>Different memory technologies (DRAM vs. SRAM vs. PCM) offer trade-offs between speed, cost, and energy consumption, influencing design choices.</li>
+<li>The energy cost of memory access is significantly higher than that of computation, necessitating strategies to minimize data movement.</li>
+</ul>
+<h2 id="tasks">Tasks</h2>
+<p>Mostly the same as last time.</p>
+<ul>
+<li>Do the background reading and read the paper for next week.</li>
+<li>Decide on teams for projects. See the <a href="https://khale.github.io/mem-systems-w25/syllabus/">syllabus</a>.</li>
+<li>Ask any questions about the course structure or content in this lesson’s <a href="https://github.com/khale/mem-systems-w25/discussions/1">discussion topic</a>.</li>
+<li>Pick a paper from the <a href="https://khale.github.io/mem-systems-w25/schedule/">schedule</a> whose discussion you want to lead.
+Claim it by opening a pull request that modifies <a href="https://github.com/khale/mem-systems-w25/blob/main/data/content.toml"><code>content.toml</code></a> to fill in your name on one of the <code>leader = "TK"</code> lines.</li>
+</ul>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

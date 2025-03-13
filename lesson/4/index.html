@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: NUMA</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 4:
+  NUMA
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/11" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;www.kernel.org&#x2F;doc&#x2F;html&#x2F;v4.18&#x2F;vm&#x2F;numa.html" class="icon reading">^ What is NUMA?</a>
+    
+    <br>The Linux Kernel Docs
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;lwn.net&#x2F;Articles&#x2F;953141&#x2F;" class="icon reading">^ KSM overview</a>
+    
+    <br>LWN article on KSM
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;www.kernel.org&#x2F;doc&#x2F;html&#x2F;v4.18&#x2F;vm&#x2F;ksm.html?highlight=numa" class="icon reading">^ Kernel Same Page Merging</a>
+    
+    <br>The Linux Kernel Docs on KSM
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;linux.die.net&#x2F;man&#x2F;8&#x2F;numactl" class="icon reading">* numactl</a>
+    
+    <br>numactl command on linux
+    
+  </li>
+  
+  
+  <li>
+    <a href="#tasks" class="icon due">tasks</a> due <strong>January 15</strong>
+  </li>
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel confortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<p>I will cover some core concepts you’ll need to really get the most out of this paper. The slides can be found on Canvas.</p>
+<h2 id="numa-overview">NUMA Overview</h2>
+<ul>
+<li>
+<p>NUMA stands for non-uniform memory access</p>
+</li>
+<li>
+<p>The basic ideas is that we have multiple domains (NUMA nodes) of memory, and different CPU cores in the system will have
+different access latencies to the different domains. This allows for more scalable systems, but introduces the complication for
+system software of minimizing access latency. Namely, in general we want our threads running on our cores to be as close as possible to the memory they use. This is referred to as <em>affinity</em>.</p>
+</li>
+<li>
+<p>NUMA is <em>implemented</em> at the hardware level. There are some platform firmware controls on how the <em>physical</em> address space gets decomposed. There are two primary approaches here:</p>
+<ul>
+<li>Interleaving: If we want to pretend like we’re not running on a NUMA system, we can interleave physical addresses across the NUMA nodes. For example, if we have 2 NUMA nodes, the memory controller would be set up to route physical address 0 to NUMA node 0, address k to NUMA node 1 (where k is the word size), address 2k to NUMA node 0, 3k to node 1, and so on.</li>
+<li>Regions: the physical address space is subdivided into linear chunks. If there are n NUMA nodes, a simple approach would just divide the size of the address space (call it a) by n. So then addresses 0 to (a/k - 1) route to NUMA node 0, (a/k - (2a/k - 1)) to node 1, and so on.</li>
+</ul>
+</li>
+</ul>
+<h3 id="numa-policies">NUMA policies</h3>
+<ul>
+<li>The two core issues that arise with NUMA are (1) mapping memory, and (2) mapping threads. When we (the OS) allocate memory, we have to decide which NUMA node to put it on. There are many policy options we could come up with for this.</li>
+<li>A typical data placement policy is the “first touch” approach. When a page first gets demand allocated because a process tried to touch unmapped memory, the OS will go to allocate a page. It can then decide which NUMA node that page is going to come from. In this case it is going to pick a page from the NUMA node closest to the CPU that the thread who generated the page fault is running on.
+This works well generally, but hopefully you can see that if a page is shared, it becomes less clear whether or not this is a good idea.</li>
+<li>These policies can be tweaked, for example if the programmer has better knowledge of access patterns than the OS can surmise. See <code>numactl</code> for example.</li>
+</ul>
+<h3 id="scale-out-numa">Scale-out NUMA</h3>
+<h2 id="deduplication-and-ksm">Deduplication and KSM</h2>
+<p>Deduplication is a general technique used in systems to reduce memory usage.
+The basic observation (which can be leveraged in many domains) is that
+applications tend to have duplicate instances of data. When that occurs,
+instead of maintaining multiple copies, the system can create one copy of the
+data and store <em>references</em> to that data instead.</p>
+<p>We can apply dedup to paging. Here, we’d like to examine all physical pages
+used on our system, and if we find that there are two (or more) pages that
+contain the same content, we can merge them into one physical page, and update
+the two PTEs to point to this one page. We can even do this <em>across</em> processes,
+and it will often be useful to do so. The Linux kernel has implemented this in
+the form of kernel same page merging (KSM).</p>
+<p>KSM runs as a low-priority background kernel thread (<code>ksmd</code>). Scanning physical
+pages, merging them, and updating PTEs to reflect the merge.</p>
+<p>Think about what would happen if duplicate pages across processes have been
+turned into a shared page, and then one of those processes goes to try to write
+its copy. What should the kernel do?</p>
+<p>You should also think about this algorithmically. What’s the complexity of
+a KSM algorithm? Hint: you can identify duplicate pages by hashing their
+contents and comparing hashes (rather than a byte-by-byte comparison). How do
+you avoid merging pages that will soon be written to?</p>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>

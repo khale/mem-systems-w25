@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>ECE 4&#x2F;599: Virtual Memory</title>
+
+  <link href="https://khale.github.io/mem-systems-w25/main.css" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" href="https://khale.github.io/mem-systems-w25/rss.xml">
+  <link rel="icon" href="https://khale.github.io/mem-systems-w25/img/favicon.ico">
+  <link rel="apple-touch-icon-precomposed" href="https://khale.github.io/mem-systems-w25/img/favicon152.png">
+  
+
+
+</head>
+<body >
+  <header>
+    <nav>
+      <h1>
+          <a href="https://khale.github.io/mem-systems-w25">ECE 4&#x2F;599</a>
+      </h1>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/extra-reading/">
+        Extra Resources
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/schedule/">
+        Schedule
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/project-ideas/">
+        Project Ideas
+      </a></p>
+      
+      
+      
+      <p><a href="https://khale.github.io/mem-systems-w25/syllabus/">
+        Syllabus
+      </a></p>
+      
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;lesson&#x2F;">
+        Lessons
+      </a></p>
+      
+      <p><a href="https://github.com/khale/mem-systems-w25/discussions">Discussions</a></p>
+      
+      
+      <p><a href="https:&#x2F;&#x2F;khale.github.io&#x2F;mem-systems-w25&#x2F;blog&#x2F;">
+        Blog
+      </a></p>
+    </nav>
+  </header>
+  <main>
+    
+<h1>
+  Lesson 3:
+  Virtual Memory
+  
+</h1>
+<ul class="links">
+  
+  <li>
+    <a href="https://github.com/khale/mem-systems-w25/discussions/3" class="icon discussion">discussion thread</a>
+  </li>
+  
+  
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;pages.cs.wisc.edu&#x2F;~remzi&#x2F;OSTEP&#x2F;" class="icon reading">^ OSTEP Textbook Chapters 18-20</a>
+    
+    <br>Remzi Arpaci-Dusseau
+    
+  </li>
+  
+  <li>
+    <a href="https:&#x2F;&#x2F;ieeexplore.ieee.org&#x2F;document&#x2F;5219356" class="icon reading">* One-Level Storage System</a>
+    
+    <br>Kilburn et al. IRE Transactions on Electronic Computers, 1962.
+    
+  </li>
+  
+  
+  <li>
+    <a href="#tasks" class="icon due">tasks</a> due <strong>January 13</strong>
+  </li>
+  
+</ul>
+
+<p>On readings:
+Recommended background readings are marked with (^) above. Optional historical or fun readings are marked with (*).
+If you feel confortable with the topic already, you may skip these readings.</p>
+<h2 id="notes">Notes</h2>
+<p>I will cover some core concepts you’ll need to really get the most out of this paper. The slides can be found on Canvas.</p>
+<h3 id="vm-basics">VM Basics</h3>
+<p>Basic techniques for virtual memory:</p>
+<ul>
+<li>Manual coordination</li>
+<li>Timesharing (dumping memory on context switch)</li>
+<li>Static relocation (using compiler)</li>
+<li>Programmable base</li>
+<li>Programmable base + bounds</li>
+<li>Segmentation</li>
+</ul>
+<p>Most of these either put undue burden on the user or toolchain, or place strict
+contiguity restrictions.</p>
+<h3 id="page-tables">Page Tables</h3>
+<ul>
+<li>Translate an arbitrary virtual page number (VPN) into an arbitrary physical page number (PPN) or page frame (PFN).</li>
+<li>Typical page size is 4K</li>
+<li>Indexing into translation table (page table) is done by breaking down the virtual address into sub-fields, primarily offset within the page (lower bits) and PT index (higher bits)</li>
+<li>Page tables live in memory, and need hardware support (at the very least, a page walker, and a new base register to hold the starting (physical) address of the PT.</li>
+<li>Page walks increase cost of memory references (every VA needs to be translated to a PA)</li>
+<li>Page attributes can be stored in the lower bits of page table entries (PTEs), e.g., valid, dirty, access timestamps etc.</li>
+<li>Advantage: no external fragmentation, allocation is fast, swapping is easy</li>
+<li>Disadvantages: page walk cost, internal fragmentation</li>
+</ul>
+<h3 id="multi-level-page-tables">Multi-Level Page Tables</h3>
+<ul>
+<li>Key observation: most of the virtual address space is not actually used (i.e., it is sparse). This means for a flat
+PT, most of the PTEs will be empty, wasting space. Multi-level PTs allow us to overcome this.</li>
+<li>PTs are allocated on demand (policy)</li>
+<li>Virtual address break down is subdivided further (upper bits: level one PT index, middle bits: level two PT index, lower bits: offset within page)</li>
+<li>Page size stays the same. Base register setup also stays the same.</li>
+<li>The bad? A page walk now has k steps for a k-level page table. Each step is a memory reference. So page walk latency goes up.</li>
+</ul>
+<h3 id="tlbs">TLBs</h3>
+<ul>
+<li>Translation Lookaside Buffer: avoid page walks!</li>
+<li>Small, on-chip, SRAM cache to store page walk outcomes. Maps VPN to PFN directly. Hit: no page walk. Miss: page walk + TLB fill.</li>
+<li>Internal organization is similar to other on-chip caches</li>
+<li>TLB <em>reach</em> is a big issue. Ideally, all the hot pages our program accesses frequently (i.e., its <em>working set</em>) would have translations stored in the TLB. But TLBs are small, so this will not always be the case. How big of a working set can be captured by the TLB? This is its <em>reach</em>. A TLB with 4K entries, each storing a translation for one 4K page, would have a reach of 2^12*2^12 = 2^24 = 16MB. This is often not enough</li>
+</ul>
+<h3 id="variable-page-sizes">Variable Page Sizes</h3>
+<ul>
+<li>Allowing for bigger page sizes can extend the reach of the TLB by fitting more address space into one TLB entry. Suppose I have 1GB pages (instead of the usual 4KB). Now my TLB with 4K entries has a reach of 4TB.</li>
+<li>Typical large page sizes are 16KB, 2MB, 1GB (and eventually 512GB).</li>
+<li>The problem with large pages is that internal fragmentation becomes more likely, so it is typical that large pages are used sparingly</li>
+<li>This means that our hardware and OS must have support for handling multiple page sizes concurrently. The biggest gotcha on the hardware side of this is that the page walk logic needs to know when to terminate.</li>
+<li>This sets up an inherent tension between TLB reach and internal fragmentation, which is one primary motivator for the Mosaic Pages paper.</li>
+</ul>
+<h3 id="sharing">Sharing</h3>
+<ul>
+<li>It is often the case we need two processes to be able to access the same physical page. The most common application of this is shared libraries (otherwise multiple programs that use the same library would need two copies of it in memory). Essentially, both processes will have two arbitrary VPNs that map to the same PFN. VPN A and VPN B can be the same or different.</li>
+<li>Another way to put it is that both processes will have the same PTE somewhere.</li>
+<li>Sharing can also be useful for inter-process communication (IPC).</li>
+</ul>
+<h3 id="context-switches">Context Switches</h3>
+<ul>
+<li>Note that when we switch from one process to another, we have to flush the VPN-&gt;PFN translations in the TLB. Otherwise, we’d have a massive security vulnerability. (One process could read physical pages from another).</li>
+<li>This means that when we switch from one process to another, we have to <strong>flush</strong> the TLB.</li>
+<li>Flushing the entire TLB can be expensive, so often TLB entries are tagged with address space identifiers (ASIDs), so that only the TLB entries that correspond to the process we’re switching <em>away from</em> get flushed. This can get us back some performance</li>
+</ul>
+<h3 id="page-walk-caching">Page Walk Caching</h3>
+<ul>
+<li>Page walks can be quite deep, especially when we’re talking about virtualization. Server-grade chips will often incorporate
+microarchitectural caches between levels of the page walk to avoid the latencies. Not always documented well.</li>
+<li>This is in addition to the TLB, and is mean to optimized the miss path.</li>
+<li>Not easy to measure.</li>
+</ul>
+<h3 id="locality-of-reference">Locality of Reference</h3>
+<ul>
+<li>TLB only gets us so far. Applications with a large working set will confound the TLB, because it always has a finite number of entries. The smaller the working set is, the less of the problem the TLB will be. More and more applications these days have large, random access patterns that make this a problem (hence the Mosaic paper).</li>
+<li>Think about how you’d design a TLB-friendly workload</li>
+</ul>
+
+
+  </main>
+  <footer>
+    <p><a href="https://www.oregonstate.edu">Oregon State University</a>
+    &mdash;
+    <a href="https://engineering.oregonstate.edu/EECS">School of EECS</a></p>
+  </footer>
+</body>
+</html>
