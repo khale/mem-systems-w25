@@ -1,9 +1,9 @@
-﻿+++ 
-title = "Exploring Kernel Samepage Merging (KSM) with Modern Workloads: PyTorch, Redis, Memcached, and Stress-ng" 
-
+﻿+++
+title = "Exploring Kernel Samepage Merging (KSM) with Modern Workloads: PyTorch, Redis, Memcached, and Stress-ng"
 [[extra.authors]] 
 name = "David Luo" 
 +++
+
 
 # Introduction
 Kernel Samepage Merging (KSM) is a Linux feature that helps optimize memory usage by identifying and merging identical memory pages across processes. This can be really useful in environments and scenarios where memory efficiency is crucial. While KSM has been widely discussed in theory, its practical effectiveness often depends on workload characteristics and system configurations.
