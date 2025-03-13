@@ -11,7 +11,9 @@ name = "Shuyi Zheng"
 ## Introduction  
 This project focused on exploring the benefits and challenges of the BTRFS file system and how it relates to persistent memory. BTRFS is a Merkle-Tree or B-Tree file system designed with CoW in mind. BTRFS is a type of harddrive type or file structure type characterized by its support of snapshotting and its built-in CoW functions. BTRFS dynamically organizes its data dynamically unlike other file systems that use bitmaps and inode tables. BTRFS also includes failsafes like checksums to recover metadata of files in the case that data gets corrupted.
 
-![Example of BTRFS Snapshots](fins5.PNG)
+![fins5](https://github.com/user-attachments/assets/555e4163-4346-4753-b95e-35d857e3e198)
+
+
 
 ## Table of Contents  
 BTRFS - binary-tree file system. A file system that has properties including COW (copy on Writing) and snapshot.  
@@ -22,15 +24,19 @@ PMEM - Persistent Memory
 ## Implementation:  
 To start it will be assumed that you are installing this filesystem on ubuntu 22.04 through WSL2
 
-![Figure 1:Setting up 5GB Disk](fin1.PNG)
+![fin1](https://github.com/user-attachments/assets/c198dbcd-8c98-467b-b460-5e7be74a49c2)
+
 
 You can use a command like `sudo mount -o loop,subvol=data btrfs-test.img /mnt/btrfs_test` to mount your test image you created. My test image is `btrfs-test.img` and im mounting `/mnt/btrfs_test`
 
-![Figure 2: checking that our drive is type btrfs](fin2.PNG)
+![fin2](https://github.com/user-attachments/assets/13fe9f0e-6464-47f1-a374-e08821f650b2)
 
-![Figure 3: creating a sub volume](fin3.PNG)
 
-![Figure 4: create a snapshot of a subdirectory](fin4.PNG)
+![fin3](https://github.com/user-attachments/assets/d6b0d76b-dbaf-4323-aeb2-c9392ceaa695)
+
+
+![fin4](https://github.com/user-attachments/assets/487618a3-3fa7-4c69-b2f6-a65062dae480)
+
 
 Example initialization of a BTRFS drive:
 
@@ -73,15 +79,19 @@ environment for this experiment was WSL2 running ubuntu 24.04
 2. snapshot with vs without noisy programs  
 3. snapshot performance over slow change of file
 
-[BTRFS noise experiment](fin6.PNG)
+![fin6](https://github.com/user-attachments/assets/421a1238-c766-4d00-b3fa-35e82aea86e6)
+
 
 ## Results
 
-![Figure 6: Random data change plot](data_change_plot.PNG)
+![data_change_plot](https://github.com/user-attachments/assets/69fb0841-11a1-4d64-bc8f-8ec284cf1e73)
 
-![Figure 7: Frequency of snapshots vs time](frequency_plot.PNG)
 
-![Figure 8: Snapshotting with and without background processes](noise_comparison.PNG)
+![frequency_plot](https://github.com/user-attachments/assets/33c5f689-5565-4c56-bb52-64fc47aa33a0)
+
+
+![noise_comparison](https://github.com/user-attachments/assets/3e89a7ea-c691-460b-829d-40cdab6610b7)
+
 
 Looking at our results we see what we are expecting to see, as we increase our
 workload we see a decrease in snapshotting speed. Snapshots of bigger files
