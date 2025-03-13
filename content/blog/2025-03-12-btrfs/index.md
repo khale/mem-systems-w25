@@ -22,15 +22,19 @@ PMEM - Persistent Memory
 ## Implementation:  
 To start it will be assumed that you are installing this filesystem on ubuntu 22.04 through WSL2
 
-![Figure 1:Setting up 5GB Disk](fin1.PNG)
+![fig1](fin1.PNG)
+Figure 1: Setting up a 5GB Disk
 
 You can use a command like `sudo mount -o loop,subvol=data btrfs-test.img /mnt/btrfs_test` to mount your test image you created. My test image is `btrfs-test.img` and im mounting `/mnt/btrfs_test`
 
-![Figure 2: checking that our drive is type btrfs](fin2.PNG)
+![fig2](fin2.PNG)
+Figure 2: checking that our drive is type btrfs
 
-![Figure 3: creating a sub volume](fin3.PNG)
+![fig3](fin3.PNG)
+Figure 3: creating a sub volume
 
-![Figure 4: create a snapshot of a subdirectory](fin4.PNG)
+![fig4](fin4.PNG)
+Figure 4: create a snapshot of a subdirectory
 
 Example initialization of a BTRFS drive:
 
@@ -73,15 +77,19 @@ environment for this experiment was WSL2 running ubuntu 24.04
 2. snapshot with vs without noisy programs  
 3. snapshot performance over slow change of file
 
-[BTRFS noise experiment](fin6.PNG)
+![noise](fin6.PNG)
+BTRFS noise experiment
 
 ## Results
 
-![Figure 6: Random data change plot](data_change_plot.PNG)
+![fig6](data_change_plot.PNG)
+Figure 6: Random data change plot
 
-![Figure 7: Frequency of snapshots vs time](frequency_plot.PNG)
+![fig7](frequency_plot.PNG)
+Figure 7: Frequency of snapshots vs time
 
-![Figure 8: Snapshotting with and without background processes](noise_comparison.PNG)
+![fig8](noise_comparison.PNG)
+Figure 8: Snapshotting with and without background processes
 
 Looking at our results we see what we are expecting to see, as we increase our
 workload we see a decrease in snapshotting speed. Snapshots of bigger files
