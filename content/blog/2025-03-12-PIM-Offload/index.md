@@ -52,20 +52,28 @@ MemGaze outputs FP and RUD metrics at function level as an inclusive metric, i.e
 
 ![Cost Model](cost-model.png)
 
-A cost function model was devised to access if a code region should be offloaded to UPMEM PIM hardware: 
-> `C = W1 * F_PIM-norm + W2 * R_amortize + W3 * L_modularity.`
+A cost function model was meant to be a comprehensive pipeline that could detect bottlenecks in the code, decide if those code regions were pim friendly, and then decide if the code regions were worth offloading to UPMEM PIM hardware. 
 
-`F_PIM-norm` is a term that quantifies how well a workload’s characteristics match the strengths of UPMEM PIM architectures. Specifically, it aggregates and scales factors such as Compute to Memory Ratio (CMR), Footprint (FP), Memory Bandwidth Demand (MBD), Access Intensity (AI), Parallelism Potential (PP), and Reuse Distance (RD). 
+> `C = W1 * F_PIM-norm + W2 * R_amortize + W3 * L_modularity`
+
+F_PIM-norm is a term that measures how well a workload matches the UPMEM PIM architecture's strengths.  Specifically, it aggregates and scales factors such as Compute to Memory Ratio (CMR), Footprint (FP), Memory Bandwidth Demand (MBD), Access Intensity (AI), Parallelism Potential (PP), and Reuse Distance (RD). This linear model is highly interpretable, reduces correlation potential, and balances theoretical pim friendliness, with the UPMEM PIM specific idiosyncracies. 
 
 > `F_PIM-norm = w1 · RD + w2 · AI + w3 · PP − w4 · CMR + w5 · MBD − w6 · FP`
 
-The `R_amortize` term quantifies whether the execution time of a workload on UPMEM PIM justifies the overhead of offloading it from the host CPU.
 
-The `L_modularity` term assesses how well a workload’s memory access patterns can be partitioned into clusters suitable for UPMEM’s Data Processing Units, each with 64 MB of local DRAM.
+The R_amortize term measures whether the execution time of a workload on UPMEM PIM justifies the overhead of offloading it from the host CPU.
 
-Based on the synthetic testing done (explained in the "Exploring/Investigating" section), we set,
 
-> `W1 = 0.3, W2 = 0.5, W3 = 0.2, Offload when C < 0.65`
+> `R_amortize = Ttransfer + Tpim + Toverhead`
+> `Ttransfer = Data size / BW`
+> `Tpim = Workload Ops / PIM Effective Throughput`
+> 
+Toverhead is the time for data setup and formatting. 
+
+The L_modularity term identifies where the memory hotspots in the code are located. 
+To get this term, the workload graph will be reconstructed from the memgaze memory traces. Then, Leiden community detection will find clusters. These clusters will be refined through temporal and hierarchical analysis. Finally, the results will be mapped back to the source code to validate the findings. 
+
+This pipeline balances executing speed, feasibility of data collection, interpretability to non-experts, and robustness against misclassification by utilizing a layered approach. 
 
 # Evaluation (Were We Successful)
 
@@ -126,19 +134,19 @@ For the MVP, linear regression’s simplicity (50 lines, no training) and interp
 
 ![Uniform vs other](uniform-vs-bursty.png)
 
-MemGaze uses uniform sampling to get memory traces. Uniform sampling is fine given its alignment with Intel PT’s high-speed, low-overhead requirements, especially for mixed or unknown hardware trace patterns. Its performance at low proportions (2%-5% coverage at 1%-2%) is acceptable as a general-purpose method, and its simplicity ensures it will not bottleneck tracing. However, for workloads with predictable patterns such as periodic loops or hotspots, a pattern-aware switch to Cluster or Adaptive sampling could improve coverage without sacrificing speed. For the MVP, Uniform at 1%-2% can be used, and if profiling reveals pattern-specific deficiencies, implement Adaptive sampling.
+MemGaze uses uniform sampling to get memory traces. Uniform sampling is fine given its alignment with Intel PT’s high-speed, low-overhead requirements, especially for mixed or unknown hardware trace patterns. Its performance at low proportions (2%-5% coverage at 1%-2%) is acceptable as a general-purpose method, and its simplicity ensures it will not bottleneck tracing. However, for workloads with predictable patterns such as periodic loops or hotspots, a pattern-aware switch to Cluster or Adaptive sampling could improve coverage without sacrificing speed. If profiling reveals pattern-specific deficiencies, Adaptive sampling should be implemented.
 
 ## Bandwidth and Footprint/Footprint Growth Correlation
 
 ![Bandwidth vs Footprint](bandwidth-vs-footprint.png)
 
-Memory bandwidth and footprint (F) or footprint growth (ΔF) show little correlation across general workloads, as F reflects capacity, not access activity, while bandwidth depends on patterns and frequency. In UPMEM HPC tests (Vector Addition), a weak positive link (~0.24) emerged between bandwidth and ΔF when F exceeded cache or used sequential access, hitting UPMEM’s 50 GB/s cap. High Bandwidth Utilization (BWU, memory accesses per cycle over compute instructions) above 70% improved offloading success, though low locality or floating-point demands capped efficiency due to UPMEM’s compute limits. Thus, while F and ΔF alone don’t predict bandwidth broadly, they tie modestly to PIM gains where memory dominates, leading the cost model to favor BWU and access patterns over raw F.
+Memory bandwidth and footprint (F) or footprint growth (ΔF) show little correlation across general workloads, as F reflects capacity. In UPMEM HPC tests (Vector Addition), a weak positive link (0.24) emerged between bandwidth and ΔF when F exceeded cache or used sequential access, hitting UPMEM’s 50 GB/s cap. The takeaway is that PIM friendliness metrics had to be checked for correlation to improve the linear model results. 
 
 # What Was Surprising
 
 Comment from Noah:
 
-> "Reality was more robust than academia led me to believe. I thought that picking specific methods like Louvain or Leiden, linear regression or XGBoost, uniform or adaptive sampling would make or break the results, but the less complicated methods did just fine."
+> "Reality is more robust than academia led me to believe. I thought that picking specific methods like Louvain or Leiden, linear regression or XGBoost, uniform or adaptive sampling would make or break the results, but the less complicated methods did just fine."
 
 # Future Extensions
 
