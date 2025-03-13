@@ -11,7 +11,7 @@ name = "Shuyi Zheng"
 ## Introduction  
 This project focused on exploring the benefits and challenges of the BTRFS file system and how it relates to persistent memory. BTRFS is a Merkle-Tree or B-Tree file system designed with CoW in mind. BTRFS is a type of harddrive type or file structure type characterized by its support of snapshotting and its built-in CoW functions. BTRFS dynamically organizes its data dynamically unlike other file systems that use bitmaps and inode tables. BTRFS also includes failsafes like checksums to recover metadata of files in the case that data gets corrupted.
 
-![Example of BTRFS Snapshots](fins5.PNG)
+![Example of BTRFS Snapshots](fins5.png)
 
 ## Table of Contents  
 BTRFS - binary-tree file system. A file system that has properties including COW (copy on Writing) and snapshot.  
@@ -22,18 +22,18 @@ PMEM - Persistent Memory
 ## Implementation:  
 To start it will be assumed that you are installing this filesystem on ubuntu 22.04 through WSL2
 
-![fig1](fin1.PNG)
+![fig1](fin1.png)
 Figure 1: Setting up a 5GB Disk
 
 You can use a command like `sudo mount -o loop,subvol=data btrfs-test.img /mnt/btrfs_test` to mount your test image you created. My test image is `btrfs-test.img` and im mounting `/mnt/btrfs_test`
 
-![fig2](fin2.PNG)
+![fig2](fin2.png)
 Figure 2: checking that our drive is type btrfs
 
-![fig3](fin3.PNG)
+![fig3](fin3.png)
 Figure 3: creating a sub volume
 
-![fig4](fin4.PNG)
+![fig4](fin4.png)
 Figure 4: create a snapshot of a subdirectory
 
 Example initialization of a BTRFS drive:
@@ -77,18 +77,18 @@ environment for this experiment was WSL2 running ubuntu 24.04
 2. snapshot with vs without noisy programs  
 3. snapshot performance over slow change of file
 
-![noise](fin6.PNG)
+![noise](fin6.png)
 BTRFS noise experiment
 
 ## Results
 
-![fig6](data_change_plot.PNG)
+![fig6](data_change_plot.png)
 Figure 6: Random data change plot
 
-![fig7](frequency_plot.PNG)
+![fig7](frequency_plot.png)
 Figure 7: Frequency of snapshots vs time
 
-![fig8](noise_comparison.PNG)
+![fig8](noise_comparison.png)
 Figure 8: Snapshotting with and without background processes
 
 Looking at our results we see what we are expecting to see, as we increase our
